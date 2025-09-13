@@ -11,7 +11,7 @@ We are using Python FastAPI
 3. Run ```source venv/bin/activate```
 4. Run ```pip install -r requirements.txt```
 5. ```Cmd + Shift + P``` > ```Python: Select Interpreter``` > ```Enter interpreter path...``` > ```./venv/bin/python```
-6. Make an ```.env``` file
+6. Make an ```.env``` file at the root level
 7. Set the values for the variables ```MONGODB_URL``` (should be the connection string with <db_password> replaced by the password that Sierra will give you) and ```ACCESS_TOKEN_EXPIRE_MINUTES``` (300 is fine for now)
 8. Run ```python run.py```
 9. Install Postman
