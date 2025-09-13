@@ -21,4 +21,4 @@ We are using Python FastAPI
 
 # Production
 
-https://karp-frontend-react.vercel.app/
+https://karp-backend.onrender.com
