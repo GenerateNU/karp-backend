@@ -1,0 +1,40 @@
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | build
+  | dist
+  | __pycache__
+  | .*migrations.*
+)/
+'''
+
+[tool.ruff]
+# In a backend-only repo, point Ruff at the repo root (or just omit "src" entirely).
+src = ["."]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle errors
+  "F",    # pyflakes
+  "I",    # isort
+  "UP",   # pyupgrade
+  "B",    # flake8-bugbear
+  "TCH",  # flake8-type-checking
+]
+ignore = [
+  "E203", # keep compatible with Black's slicing whitespace
+]
+
+[tool.ruff.lint.per-file-ignores]
+"**/__init__.py" = ["F401"]
+
+# (Only used if you run `ruff format`. Safe to keep.)
+[tool.ruff.format]
+quote-style = "preserve"
