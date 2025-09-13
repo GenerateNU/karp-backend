@@ -18,3 +18,7 @@ We are using Python FastAPI
 10. Make a new tab, and send a GET request to ```http://localhost:8080``` and ensure that the returned result is ```{ "status": "ok", "message": "API is running" }```
 11. Make a MongoDB account and get Sierra to add you to the list of users by providing you an email
 12. Run ```pre-commit install```
+
+# Production
+
+https://karp-frontend-react.vercel.app/
