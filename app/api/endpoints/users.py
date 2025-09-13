@@ -3,14 +3,15 @@ import re
 from datetime import timedelta
 from typing import Annotated
 
-from app.models.user import user_model
-from app.schemas.user import User, UserInDB, UserResponse
-from app.utils import create_access_token, hash_password, settings, verify_password
 from bson import ObjectId
 from fastapi import APIRouter, Depends, Form, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from pydantic import EmailStr
+
+from app.models.user import user_model
+from app.schemas.user import User, UserInDB, UserResponse
+from app.utils import create_access_token, hash_password, settings, verify_password
 
 router = APIRouter()
 
@@ -62,7 +63,7 @@ async def create_user(
     last_name: Annotated[str | None, Form()] = None,
 ):
     """
-    Create a new user with publications and avatar image.
+    Create a new user
     """
     logger.info(f"Creating new user with email: {email}")
 
