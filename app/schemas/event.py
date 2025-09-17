@@ -22,3 +22,15 @@ class CreateEventRequest(BaseModel):
     location: str
     organization_id: str
     max_volunteers: int
+
+
+class UpdateEventStatusRequestDTO(BaseModel):
+    status: str
+    name: str
+    location: str
+    max_volunteers: int
+    start_date_time: datetime
+    end_date_time: datetime
+
+    class Config:
+        from_attributes = True
