@@ -88,6 +88,11 @@ async def create_user(
     """
     logger.info(f"Creating new user with email: {email}")
 
+    # Validate email format
+    ok_email, email_message = validate_email(email)
+    if not ok_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=email_message)
+
     # Validate password strength
     ok, message = validate_password(password)
     if not ok:
