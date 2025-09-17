@@ -87,6 +87,11 @@ async def create_user(
     """
     logger.info(f"Creating new user with email: {email}")
 
+    # Validate password strength
+    ok, message = validate_password(password)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+
     # Check if user exists
     user_exists = await user_model.check_existing_username_and_email(
         username.lower(), email.lower()
