@@ -18,7 +18,7 @@ class User(BaseModel):
     first_name: str
     last_name: str
     user_type: UserType
-    entity_id: str
+    entity_id: str | None = None
 
     class Config:
         from_attributes = True
@@ -28,6 +28,14 @@ class UserResponse(BaseModel):
     access_token: str
     token_type: str
     user: User
+
+    class Config:
+        from_attributes = True
+
+
+class UserRedirectResponse(BaseModel):
+    user_type: UserType
+    entity_id: str | None = None
 
     class Config:
         from_attributes = True

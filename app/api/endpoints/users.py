@@ -10,7 +10,7 @@ from jose import JWTError, jwt
 from pydantic import EmailStr
 
 from app.models.user import user_model
-from app.schemas.user import User, UserResponse, UserType
+from app.schemas.user import User, UserRedirectResponse, UserResponse, UserType
 from app.utils import create_access_token, hash_password, settings, verify_password
 
 router = APIRouter()
@@ -120,7 +120,6 @@ async def create_user(
         "first_name": first_name,
         "last_name": last_name,
         "user_type": user_type,
-        "entity_id": None,
     }
 
     # Save user to database
@@ -150,7 +149,6 @@ async def create_user(
             first_name=first_name,
             last_name=last_name,
             user_type=user_type,
-            entity_id=None,
         ),
     )
 
@@ -258,9 +256,9 @@ async def reset_password(
     return {"detail": "Password updated successfully"}
 
 
-@router.get("/me", response_model=User)
+@router.get("/me", response_model=UserRedirectResponse)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
-    return current_user
+    return UserRedirectResponse(user_type=current_user.user_type, entity_id=current_user.entity_id)
 
 
 @router.get("/all", response_model=list[User])
