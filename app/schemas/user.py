@@ -39,3 +39,22 @@ class UserRedirectResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CreateUserRequest(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+    first_name: str
+    last_name: str
+    user_type: UserType
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class ResetPasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

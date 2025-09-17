@@ -4,13 +4,19 @@ from datetime import timedelta
 from typing import Annotated
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, Form, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from pydantic import EmailStr
 
 from app.models.user import user_model
-from app.schemas.user import User, UserRedirectResponse, UserResponse, UserType
+from app.schemas.user import (
+    CreateUserRequest,
+    LoginRequest,
+    ResetPasswordRequest,
+    User,
+    UserRedirectResponse,
+    UserResponse,
+)
 from app.utils import create_access_token, hash_password, settings, verify_password
 
 router = APIRouter()
@@ -75,32 +81,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
 
 @router.post("/", response_model=UserResponse)
-async def create_user(
-    username: Annotated[str, Form(...)],
-    email: Annotated[EmailStr, Form(...)],
-    password: Annotated[str, Form(...)],
-    first_name: Annotated[str, Form(...)],
-    last_name: Annotated[str, Form(...)],
-    user_type: Annotated[UserType, Form(...)],
-):
+async def create_user(payload: Annotated[CreateUserRequest, Body(...)]):
     """
     Create a new user
     """
-    logger.info(f"Creating new user with email: {email}")
+    logger.info(f"Creating new user with email: {payload.email}")
 
     # Validate email format
-    ok_email, email_message = validate_email(email)
+    ok_email, email_message = validate_email(payload.email)
     if not ok_email:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=email_message)
 
     # Validate password strength
-    ok, message = validate_password(password)
+    ok, message = validate_password(payload.password)
     if not ok:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 
     # Check if user exists
     user_exists = await user_model.check_existing_username_and_email(
-        username.lower(), email.lower()
+        payload.username.lower(), payload.email.lower()
     )
 
     if user_exists:
@@ -109,17 +108,17 @@ async def create_user(
 
     # Create user document
     user_id = str(ObjectId())
-    hashed_password = hash_password(password)
+    hashed_password = hash_password(payload.password)
 
     # Create user data dictionary
     user_data = {
         "id": user_id,
-        "email": email.lower(),
-        "username": username.lower(),
+        "email": payload.email.lower(),
+        "username": payload.username.lower(),
         "hashed_password": hashed_password,
-        "first_name": first_name,
-        "last_name": last_name,
-        "user_type": user_type,
+        "first_name": payload.first_name,
+        "last_name": payload.last_name,
+        "user_type": payload.user_type,
     }
 
     # Save user to database
@@ -134,35 +133,27 @@ async def create_user(
     # Create access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": email.lower()}, expires_delta=access_token_expires
+        data={"sub": payload.email.lower()}, expires_delta=access_token_expires
     )
 
     # Prepare user response
     user_response = UserResponse(
         access_token=access_token,
         token_type="bearer",
-        user=User(
-            id=user_id,
-            email=email.lower(),
-            username=username.lower(),
-            hashed_password=hashed_password,
-            first_name=first_name,
-            last_name=last_name,
-            user_type=user_type,
-        ),
+        user=User(**user_data),
     )
 
-    logger.info(f"Successfully created user with email: {email}")
+    logger.info(f"Successfully created user with email: {payload.email}")
     return user_response
 
 
 # Update the login endpoint
 @router.post("/token", response_model=UserResponse)
-async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    logger.info(f"Login attempt for user: {form_data.username}")
+async def login_for_access_token(payload: Annotated[LoginRequest, Body(...)]):
+    logger.info(f"Login attempt for user: {payload.username}")
 
     # Find user by username (case insensitive)
-    user = await user_model.get_by_username(form_data.username.lower())
+    user = await user_model.get_by_username(payload.username.lower())
     logger.info(f"User found: {user}")
 
     if not user:
@@ -174,7 +165,7 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
         )
 
     # Verify password
-    if not verify_password(form_data.password, user.hashed_password):
+    if not verify_password(payload.password, user.hashed_password):
         logger.error("Invalid password")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -193,7 +184,7 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
         user=user,
     )
 
-    logger.info(f"Login successful for user: {form_data.username}")
+    logger.info(f"Login successful for user: {payload.username}")
     return user_response
 
 
@@ -218,33 +209,32 @@ async def oauth_scheme_token(form_data: Annotated[OAuth2PasswordRequestForm, Dep
 
 @router.post("/reset-password", response_model=dict)
 async def reset_password(
-    current_password: Annotated[str, Form(...)],
-    new_password: Annotated[str, Form(...)],
+    payload: Annotated[ResetPasswordRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ):
     """Reset password for the authenticated user."""
     # Verify current password
     if not current_user.hashed_password or not verify_password(
-        current_password, current_user.hashed_password
+        payload.current_password, current_user.hashed_password
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect"
         )
 
     # Validate new password strength
-    ok, message = validate_password(new_password)
+    ok, message = validate_password(payload.new_password)
     if not ok:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 
     # Prevent reusing the same password
-    if verify_password(new_password, current_user.hashed_password):
+    if verify_password(payload.new_password, current_user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="New password must be different from the current password",
         )
 
     # Hash and update
-    new_hashed = hash_password(new_password)
+    new_hashed = hash_password(payload.new_password)
     try:
         await user_model.update_password_by_id(current_user.id, new_hashed)
     except Exception:
