@@ -10,7 +10,7 @@ from jose import JWTError, jwt
 from pydantic import EmailStr
 
 from app.models.user import user_model
-from app.schemas.user import User, UserResponse
+from app.schemas.user import User, UserResponse, UserType
 from app.utils import create_access_token, hash_password, settings, verify_password
 
 router = APIRouter()
@@ -79,8 +79,9 @@ async def create_user(
     username: Annotated[str, Form(...)],
     email: Annotated[EmailStr, Form(...)],
     password: Annotated[str, Form(...)],
-    first_name: Annotated[str | None, Form()] = None,
-    last_name: Annotated[str | None, Form()] = None,
+    first_name: Annotated[str, Form(...)],
+    last_name: Annotated[str, Form(...)],
+    user_type: Annotated[UserType, Form(...)],
 ):
     """
     Create a new user
@@ -105,6 +106,9 @@ async def create_user(
     user_id = str(ObjectId())
     hashed_password = hash_password(password)
 
+    # TODO: Set this value after creating the corresponding entity based on the entity type
+    entity_id = str(ObjectId())
+
     # Create user data dictionary
     user_data = {
         "id": user_id,
@@ -113,6 +117,8 @@ async def create_user(
         "hashed_password": hashed_password,
         "first_name": first_name,
         "last_name": last_name,
+        "user_type": user_type,
+        "entity_id": entity_id,
     }
 
     # Save user to database
@@ -138,8 +144,11 @@ async def create_user(
             id=user_id,
             email=email.lower(),
             username=username.lower(),
+            hashed_password=hashed_password,
             first_name=first_name,
             last_name=last_name,
+            user_type=user_type,
+            entity_id=entity_id,
         ),
     )
 
