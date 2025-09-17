@@ -11,7 +11,7 @@ class VendorModel:
 
     async def create_vendor(self, vendor: CreateVendorRequest, user_id: str) -> Vendor:
         vendor_data = vendor.model_dump()
-        result = await self.collection.insert_one(vendor_data)
+        result = await self.collection.insert_one(Vendor(**vendor_data).model_dump())
 
         await user_model.update_entity_id_by_id(user_id, str(result.inserted_id))
 

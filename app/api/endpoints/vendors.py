@@ -14,6 +14,18 @@ async def create_vendor(
     vendor: Annotated[CreateVendorRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ):
+    if current_user.user_type != UserType.VENDOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only users with vendor role can create a vendor",
+        )
+
+    if current_user.entity_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have already been associated with a vendor",
+        )
+
     return await vendor_model.create_vendor(vendor, current_user.id)
 
 
