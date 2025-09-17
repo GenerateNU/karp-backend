@@ -202,7 +202,46 @@ async def oauth_scheme_token(form_data: Annotated[OAuth2PasswordRequestForm, Dep
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-# Protected route to get current user info
+@router.post("/reset-password", response_model=dict)
+async def reset_password(
+    current_password: Annotated[str, Form(...)],
+    new_password: Annotated[str, Form(...)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Reset password for the authenticated user."""
+    # Verify current password
+    if not current_user.hashed_password or not verify_password(
+        current_password, current_user.hashed_password
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect"
+        )
+
+    # Validate new password strength
+    ok, message = validate_password(new_password)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+
+    # Prevent reusing the same password
+    if verify_password(new_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password",
+        )
+
+    # Hash and update
+    new_hashed = hash_password(new_password)
+    try:
+        await user_model.update_password_by_id(current_user.id, new_hashed)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update password",
+        ) from None
+
+    return {"detail": "Password updated successfully"}
+
+
 @router.get("/me", response_model=User)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
     return current_user

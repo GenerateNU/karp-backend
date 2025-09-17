@@ -37,5 +37,10 @@ class UserModel:
     async def delete_all_users(self) -> None:
         await self.collection.delete_many({})
 
+    async def update_password_by_id(self, user_id: str, new_hashed_password: str) -> None:
+        await self.collection.update_one(
+            {"id": user_id}, {"$set": {"hashed_password": new_hashed_password}}
+        )
+
 
 user_model = UserModel()
