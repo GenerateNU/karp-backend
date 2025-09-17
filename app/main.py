@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.endpoints import health, persons, users
+from app.api.endpoints import health, persons, users, vendors
 
 app = FastAPI()
 
@@ -22,8 +22,10 @@ app.add_middleware(
 )
 
 # Include the users router
+app.include_router(health.router, prefix="", tags=["health"])
+
 app.include_router(users.router, prefix="/users", tags=["users"])
 
 app.include_router(persons.router, prefix="/persons", tags=["persons"])
 
-app.include_router(health.router, prefix="", tags=["Health"])
+app.include_router(vendors.router, prefix="/vendors", tags=["vendors"])
