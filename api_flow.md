@@ -5,21 +5,27 @@ We want to guard our backend APIs with auth. To do this, we decorate our API end
 - Import this as ```Register User``` into Postman and hit it (or change email as needed if it has already been registered)
 ```
 curl --location 'http://localhost:8080/users' \
+--header 'Content-Type: application/json' \
 --header 'Cookie: kl_csrftoken=lJUhDl0Lffqes6OKO3feS5UCry9xG3bA' \
---form 'username="Test3"' \
---form 'email="test3@gmail.com"' \
---form 'password="TestPassword_123\!"' \
---form 'first_name="Test3"' \
---form 'last_name="Test3"' \
---form 'user_type="VENDOR"'
+--data-raw '{
+    "username": "Test3",
+    "email": "test3@gmail.com",
+    "password": "TestPassword_123!",
+    "first_name": "Test3",
+    "last_name": "Test3",
+    "user_type": "VENDOR"
+}'
 ```
 
 - Import this as ```Sign In User``` into Postman, hit it, and copy the ```access_token``` from the response payload
 ```
 curl --location 'http://localhost:8080/users/token' \
+--header 'Content-Type: application/json' \
 --header 'Cookie: kl_csrftoken=lJUhDl0Lffqes6OKO3feS5UCry9xG3bA' \
---form 'username="Test3"' \
---form 'password="TestPassword_123\!"'
+--data '{
+    "username": "Test3",
+    "password": "TestPassword_123!"
+}'
 ```
 
 - Import this as ```Get Me``` into Postman and hit it (you should get null for the ```entity_id```)
