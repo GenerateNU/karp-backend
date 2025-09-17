@@ -5,7 +5,7 @@ from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.api.endpoints import health, persons, users
+from app.api.endpoints import health, item, persons, users
 from app.core.config import settings
 from app.models.user import user_model
 from app.utils import create_access_token, verify_password
@@ -34,6 +34,8 @@ app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(persons.router, prefix="/persons", tags=["persons"])
 
 app.include_router(health.router, prefix="", tags=["Health"])
+
+app.include_router(item.router, prefix="/item", tags=["item"])
 
 
 # Login
