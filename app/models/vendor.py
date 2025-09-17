@@ -1,6 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
+from app.models.user import user_model
 from app.schemas.vendor import CreateVendorRequest, Vendor
 
 
@@ -8,9 +9,12 @@ class VendorModel:
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["vendors"]
 
-    async def create_vendor(self, vendor: CreateVendorRequest) -> Vendor:
+    async def create_vendor(self, vendor: CreateVendorRequest, user_id: str) -> Vendor:
         vendor_data = vendor.model_dump()
-        await self.collection.insert_one(vendor_data)
+        result = await self.collection.insert_one(vendor_data)
+
+        await user_model.update_entity_id_by_id(user_id, str(result.inserted_id))
+
         return Vendor(**vendor_data)
 
     async def get_all_vendors(self) -> list[Vendor]:

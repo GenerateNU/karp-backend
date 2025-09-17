@@ -42,5 +42,8 @@ class UserModel:
             {"id": user_id}, {"$set": {"hashed_password": new_hashed_password}}
         )
 
+    async def update_entity_id_by_id(self, user_id: str, entity_id: str) -> None:
+        await self.collection.update_one({"id": user_id}, {"$set": {"entity_id": entity_id}})
+
 
 user_model = UserModel()

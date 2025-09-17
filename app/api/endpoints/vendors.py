@@ -10,8 +10,11 @@ router = APIRouter()
 
 
 @router.post("/new", response_model=Vendor)
-async def create_vendor(vendor: Annotated[CreateVendorRequest, Body(...)]):
-    return await vendor_model.create_vendor(vendor)
+async def create_vendor(
+    vendor: Annotated[CreateVendorRequest, Body(...)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    return await vendor_model.create_vendor(vendor, current_user.id)
 
 
 @router.get("/all", response_model=list[Vendor])
