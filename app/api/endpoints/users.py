@@ -111,9 +111,6 @@ async def create_user(
     user_id = str(ObjectId())
     hashed_password = hash_password(password)
 
-    # TODO: Set this value after creating the corresponding entity based on the entity type
-    entity_id = str(ObjectId())
-
     # Create user data dictionary
     user_data = {
         "id": user_id,
@@ -123,7 +120,7 @@ async def create_user(
         "first_name": first_name,
         "last_name": last_name,
         "user_type": user_type,
-        "entity_id": entity_id,
+        "entity_id": None,
     }
 
     # Save user to database
@@ -153,7 +150,7 @@ async def create_user(
             first_name=first_name,
             last_name=last_name,
             user_type=user_type,
-            entity_id=entity_id,
+            entity_id=None,
         ),
     )
 

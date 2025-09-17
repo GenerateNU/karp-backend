@@ -1,4 +1,3 @@
-from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
@@ -8,11 +7,6 @@ from app.schemas.vendor import CreateVendorRequest, Vendor
 class VendorModel:
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["vendors"]
-
-    async def create_from_object(self, vendor: Vendor) -> ObjectId:
-        vendor_data = vendor.model_dump()
-        result = await self.collection.insert_one(vendor_data)
-        return result.inserted_id
 
     async def create_vendor(self, vendor: CreateVendorRequest) -> Vendor:
         vendor_data = vendor.model_dump()
