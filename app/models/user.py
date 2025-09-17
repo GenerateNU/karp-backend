@@ -1,24 +1,28 @@
 from pydantic import EmailStr
 
 from app.database.mongodb import db
-from app.schemas.user import UserInDB
+from app.schemas.user import User
 
 
 class UserModel:
     def __init__(self):
         self.collection = db["users"]
 
-    async def get_by_email(self, email: EmailStr) -> UserInDB:
-        return await self.collection.find_one({"email": email})
+    async def get_by_email(self, email: EmailStr) -> User | None:
+        doc = await self.collection.find_one({"email": email})
+        return User(**doc) if doc else None
 
-    async def get_by_username(self, username: str) -> UserInDB:
-        return await self.collection.find_one({"username": username})
+    async def get_by_username(self, username: str) -> User | None:
+        doc = await self.collection.find_one({"username": username})
+        return User(**doc) if doc else None
 
-    async def get_by_id(self, id: str) -> UserInDB:
-        return await self.collection.find_one({"id": id})
+    async def get_by_id(self, id: str) -> User | None:
+        doc = await self.collection.find_one({"id": id})
+        return User(**doc) if doc else None
 
-    async def get_all(self):
-        return await self.collection.find().to_list(1000)
+    async def get_all(self) -> list[User]:
+        docs = await self.collection.find().to_list(1000)
+        return [User(**doc) for doc in docs]
 
     async def check_existing_username_and_email(self, username: str, email: EmailStr) -> bool:
         existing_user = await self.collection.find_one(
@@ -29,6 +33,9 @@ class UserModel:
 
     async def create_user(self, form_data):
         return await self.collection.insert_one(form_data)
+
+    async def delete_all_users(self) -> None:
+        await self.collection.delete_many({})
 
 
 user_model = UserModel()

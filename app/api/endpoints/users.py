@@ -10,7 +10,7 @@ from jose import JWTError, jwt
 from pydantic import EmailStr
 
 from app.models.user import user_model
-from app.schemas.user import User, UserInDB, UserResponse
+from app.schemas.user import User, UserResponse
 from app.utils import create_access_token, hash_password, settings, verify_password
 
 router = APIRouter()
@@ -71,7 +71,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     user = await user_model.get_by_email(email)
     if user is None:
         raise credentials_exception
-    return UserInDB(**user)
+    return user
 
 
 @router.post("/", response_model=UserResponse)
@@ -160,7 +160,7 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
         )
 
     # Verify password
-    if not verify_password(form_data.password, user["hashed_password"]):
+    if not verify_password(form_data.password, user.hashed_password):
         logger.error("Invalid password")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -170,21 +170,13 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
 
     # Create access token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user["email"]}, expires_delta=access_token_expires
-    )
+    access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
 
     # Prepare user response
     user_response = UserResponse(
         access_token=access_token,
         token_type="bearer",
-        user=User(
-            id=user["id"],
-            email=user["email"],
-            username=user["username"],
-            first_name=user.get("first_name"),
-            last_name=user.get("last_name"),
-        ),
+        user=user,
     )
 
     logger.info(f"Login successful for user: {form_data.username}")
@@ -198,7 +190,7 @@ async def oauth_scheme_token(form_data: Annotated[OAuth2PasswordRequestForm, Dep
     Returns only the token payload for OAuth2 compatibility.
     """
     user = await user_model.get_by_email(form_data.username)
-    if not user or not verify_password(form_data.password, user["hashed_password"]):
+    if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -206,9 +198,7 @@ async def oauth_scheme_token(form_data: Annotated[OAuth2PasswordRequestForm, Dep
         )
 
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user["email"]}, expires_delta=access_token_expires
-    )
+    access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -231,3 +221,8 @@ async def get_user(user_id: str):
     print(user_id)
     user = await user_model.get_by_id(user_id)
     return user
+
+
+@router.delete("/clear", response_model=None)
+async def clear_users():
+    return await user_model.delete_all_users()

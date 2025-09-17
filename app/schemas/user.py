@@ -1,47 +1,16 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 
-class UserBase(BaseModel):
+class User(BaseModel):
+    id: str
     email: EmailStr
+    username: str
+    hashed_password: str | None = Field(default=None, exclude=True)
     first_name: str | None = None
     last_name: str | None = None
 
     class Config:
         from_attributes = True
-
-
-class UserCreate(UserBase):
-    username: str
-    password: str
-
-    class Config:
-        from_attributes = True
-
-
-class User(UserBase):
-    id: str
-    username: str
-
-    class Config:
-        from_attributes = True
-
-
-class UserInDB(UserBase):
-    id: str
-    username: str
-    hashed_password: str
-
-    class Config:
-        from_attributes = True
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    email: str | None = None
 
 
 class UserResponse(BaseModel):
