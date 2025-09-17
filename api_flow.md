@@ -28,14 +28,14 @@ curl --location 'http://localhost:8080/users/token' \
 }'
 ```
 
-- Import this as ```Get Me``` into Postman and hit it (you should get null for the ```entity_id```)
+- Import this as ```Get Me``` into Postman, go to the Authorization tab, select Bearer, replace with the value you copied from before, and hit it (you should get null for the ```entity_id```)
 ```
 curl --location 'http://localhost:8080/users/me' \
 --header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0M0BnbWFpbC5jb20iLCJleHAiOjE3NTgxMDIxNDl9.kS98F14s9xejZ8OKyc9Xyr1TyGLrYgTA-MpWpbaDksI' \
 --header 'Cookie: kl_csrftoken=lJUhDl0Lffqes6OKO3feS5UCry9xG3bA'
 ```
 
-- Import this as ```Create New Vendor``` into Postman and hit it
+- Import this as ```Create New Vendor``` into Postman, replace the bearer token like above, and hit it
 ```
 curl --location 'http://localhost:8080/vendors/new' \
 --header 'Content-Type: application/json' \
