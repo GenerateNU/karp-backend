@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body
 
 from app.models.item import item_model
-from app.schemas.item import CreateItemRequest, Item
+from app.schemas.item import CreateItemRequest, Item, UpdateItemRequest
 
 router = APIRouter()
 
@@ -36,6 +36,6 @@ async def activate_item(item_id: str):
 
 
 @router.put("/{item_id}")
-async def update_item(item: Annotated[CreateItemRequest, Body(...)], item_id: str):
-    await item_model.update_item(item_id)
+async def update_item(updated_item: Annotated[UpdateItemRequest, Body(...)], item_id: str):
+    await item_model.update_item(updated_item, item_id)
     return {"message": "Item updated successfully"}

@@ -16,7 +16,7 @@ class ItemModel:
         item_data = item.model_dump()
 
         item_data["timePosted"] = datetime.now()
-        item_data["expiration"] = datetime.strptime(item_data["expiration"], "%d-%m-%Y")
+        item_data["expiration"] = datetime.strptime(item_data["expiration"], "%m-%d-%Y %H:%M:%S")
         item_data["vendorId"] = ObjectId(vendor_id)
         item_data["status"] = "active"
         item_data["price"] = 30  # set to default 30 for now
@@ -82,11 +82,20 @@ class ItemModel:
             raise HTTPException(
                 status_code=500, detail="Item id can't be converted to Object Id!"
             ) from err
+
         # excludes updating fields not provided
         updated_data = updated_item.model_dump(exclude_unset=True)
 
         if "expiration" in updated_data:
-            updated_data["expiration"] = datetime.strptime(updated_data["expiration"], "%d-%m-%Y")
+            try:
+                updated_data["expiration"] = datetime.strptime(
+                    updated_data["expiration"], "%m-%d-%Y %H:%M:%S"
+                )
+            except Exception as err:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Date can not be converted. It should be in %m-%d-%Y %H:%M:%S format",
+                ) from err
 
         result = await db["items"].update_one({"_id": item_obj_id}, {"$set": updated_data})
 

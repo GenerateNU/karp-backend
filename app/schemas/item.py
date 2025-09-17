@@ -8,7 +8,7 @@ class Item(BaseModel):
     status: str
     timePosted: datetime = datetime.now()
     expiration: datetime
-    price: str
+    price: int
 
     class Config:
         from_attributes = True
@@ -16,11 +16,11 @@ class Item(BaseModel):
 
 class CreateItemRequest(BaseModel):
     name: str
-    expiration: str
+    expiration: str  # should be in DD-MM-YYYY H:M:S format
 
 
 class UpdateItemRequest(BaseModel):
-    name: str | None
-    price: int | None
-    expiration: str | None
-    status: str | None
+    name: str | None = None
+    price: int | None = None
+    expiration: str | None = None
+    status: str | None = None
