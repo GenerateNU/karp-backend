@@ -32,7 +32,7 @@ async def get_event_by_id(event_id: str) -> Event | None:
     return event
 
 
-@router.get("/{organization_id}", response_model=list[Event])
+@router.get("/organization/{organization_id}", response_model=list[Event])
 async def get_events_by_org(organization_id: str) -> list[Event]:
     event_list = await event_model.get_events_by_organization(organization_id)
     return event_list

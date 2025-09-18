@@ -1,8 +1,9 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from bson import ObjectId
 
-class Status(Enum):
+class Status(str, Enum):
     PUBLISHED = "published"
     COMPLETED = "completed"
     CANCELLED = "cancelled"
@@ -10,6 +11,7 @@ class Status(Enum):
     DELETED = "deleted"
 
 class Event(BaseModel):
+    id: str | None = Field(default=None, alias="_id")
     name: str
     location: str
     start_date_time: datetime
@@ -17,11 +19,20 @@ class Event(BaseModel):
     organization_id: str
     status: Status
     max_volunteers: int
-    created_at: datetime = datetime.now()
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    class Config:
-        from_attributes = True
-        use_enum_values = True
+    model_config = ConfigDict(
+        use_enum_values=True,
+        from_attributes=True,
+        populate_by_name=True,
+        extra="ignore",
+    )
+
+    @model_validator(mode="before")
+    def _convert_objectid(cls, data: dict):
+        if data and "_id" in data and isinstance(data["_id"], ObjectId):
+            data["_id"] = str(data["_id"])
+        return data
 
 class CreateEventRequest(BaseModel):
     name: str
@@ -39,6 +50,7 @@ class UpdateEventStatusRequestDTO(BaseModel):
     start_date_time: datetime
     end_date_time: datetime
 
-    class Config:
-        use_enum_values = True
-        from_attributes = True
+    model_config = ConfigDict(
+        use_enum_values=True,
+        from_attributes=True
+    )
