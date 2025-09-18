@@ -4,13 +4,19 @@ from datetime import timedelta
 from typing import Annotated
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, Form, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
-from pydantic import EmailStr
 
 from app.models.user import user_model
-from app.schemas.user import User, UserInDB, UserResponse
+from app.schemas.user import (
+    CreateUserRequest,
+    LoginRequest,
+    ResetPasswordRequest,
+    User,
+    UserRedirectResponse,
+    UserResponse,
+)
 from app.utils import create_access_token, hash_password, settings, verify_password
 
 router = APIRouter()
@@ -21,7 +27,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # OAuth2 scheme
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/oauth2-scheme-token")
 
 
 def validate_password(password: str) -> tuple[bool, str]:
@@ -54,123 +60,6 @@ def validate_email(email: str) -> tuple[bool, str]:
     return True, "Email is valid"
 
 
-@router.post("/", response_model=UserResponse)
-async def create_user(
-    username: Annotated[str, Form(...)],
-    email: Annotated[EmailStr, Form(...)],
-    password: Annotated[str, Form(...)],
-    first_name: Annotated[str | None, Form()] = None,
-    last_name: Annotated[str | None, Form()] = None,
-):
-    """
-    Create a new user
-    """
-    logger.info(f"Creating new user with email: {email}")
-
-    # Check if user exists
-    user_exists = await user_model.check_existing_username_and_email(
-        username.lower(), email.lower()
-    )
-
-    if user_exists:
-        detail = "Email or username already registered"
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
-
-    # Create user document
-    user_id = str(ObjectId())
-    hashed_password = hash_password(password)
-
-    # Create user data dictionary
-    user_data = {
-        "id": user_id,
-        "email": email.lower(),
-        "username": username.lower(),
-        "hashed_password": hashed_password,
-        "first_name": first_name,
-        "last_name": last_name,
-    }
-
-    # Save user to database
-    try:
-        await user_model.create_user(user_data)
-    except Exception as e:
-        logger.error(f"Database error during user creation: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error creating user account"
-        ) from None
-
-    # Create access token
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": email.lower()}, expires_delta=access_token_expires
-    )
-
-    # Prepare user response
-    user_response = UserResponse(
-        access_token=access_token,
-        token_type="bearer",
-        user=User(
-            id=user_id,
-            email=email.lower(),
-            username=username.lower(),
-            first_name=first_name,
-            last_name=last_name,
-        ),
-    )
-
-    logger.info(f"Successfully created user with email: {email}")
-    return user_response
-
-
-# Update the login endpoint
-@router.post("/token", response_model=UserResponse)
-async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    logger.info(f"Login attempt for user: {form_data.username}")
-
-    # Find user by username (case insensitive)
-    user = await user_model.get_by_username(form_data.username.lower())
-    logger.info(f"User found: {user}")
-
-    if not user:
-        logger.error("User not found")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Verify password
-    if not verify_password(form_data.password, user["hashed_password"]):
-        logger.error("Invalid password")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # Create access token
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user["email"]}, expires_delta=access_token_expires
-    )
-
-    # Prepare user response
-    user_response = UserResponse(
-        access_token=access_token,
-        token_type="bearer",
-        user=User(
-            id=user["id"],
-            email=user["email"],
-            username=user["username"],
-            first_name=user.get("first_name"),
-            last_name=user.get("last_name"),
-        ),
-    )
-
-    logger.info(f"Login successful for user: {form_data.username}")
-    return user_response
-
-
 # Get current user
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
@@ -188,13 +77,178 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     user = await user_model.get_by_email(email)
     if user is None:
         raise credentials_exception
-    return UserInDB(**user)
+    return user
 
 
-# Protected route to get current user info
-@router.get("/me", response_model=User)
+@router.post("/", response_model=UserResponse)
+async def create_user(payload: Annotated[CreateUserRequest, Body(...)]):
+    """
+    Create a new user
+    """
+    logger.info(f"Creating new user with email: {payload.email}")
+
+    # Validate email format
+    ok_email, email_message = validate_email(payload.email)
+    if not ok_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=email_message)
+
+    # Validate password strength
+    ok, message = validate_password(payload.password)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+
+    # Check if user exists
+    user_exists = await user_model.check_existing_username_and_email(
+        payload.username.lower(), payload.email.lower()
+    )
+
+    if user_exists:
+        detail = "Email or username already registered"
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
+
+    # Create user document
+    user_id = str(ObjectId())
+    hashed_password = hash_password(payload.password)
+
+    # Create user data dictionary
+    user_data = {
+        "id": user_id,
+        "email": payload.email.lower(),
+        "username": payload.username.lower(),
+        "hashed_password": hashed_password,
+        "first_name": payload.first_name,
+        "last_name": payload.last_name,
+        "user_type": payload.user_type,
+    }
+
+    # Save user to database
+    try:
+        await user_model.create_user(user_data)
+    except Exception as e:
+        logger.error(f"Database error during user creation: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error creating user account"
+        ) from None
+
+    # Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": payload.email.lower()}, expires_delta=access_token_expires
+    )
+
+    # Prepare user response
+    user_response = UserResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=User(**user_data),
+    )
+
+    logger.info(f"Successfully created user with email: {payload.email}")
+    return user_response
+
+
+# Update the login endpoint
+@router.post("/token", response_model=UserResponse)
+async def login_for_access_token(payload: Annotated[LoginRequest, Body(...)]):
+    logger.info(f"Login attempt for user: {payload.username}")
+
+    # Find user by username (case insensitive)
+    user = await user_model.get_by_username(payload.username.lower())
+    logger.info(f"User found: {user}")
+
+    if not user:
+        logger.error("User not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Verify password
+    if not verify_password(payload.password, user.hashed_password):
+        logger.error("Invalid password")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Create access token
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
+
+    # Prepare user response
+    user_response = UserResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=user,
+    )
+
+    logger.info(f"Login successful for user: {payload.username}")
+    return user_response
+
+
+@router.post("/oauth2-scheme-token", response_model=dict)
+async def oauth_scheme_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    """
+    Generate access token using email (provided in OAuth2 `username` field).
+    Returns only the token payload for OAuth2 compatibility.
+    """
+    user = await user_model.get_by_email(form_data.username)
+    if not user or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(data={"sub": user.email}, expires_delta=access_token_expires)
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/reset-password", response_model=dict)
+async def reset_password(
+    payload: Annotated[ResetPasswordRequest, Body(...)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Reset password for the authenticated user."""
+    # Verify current password
+    if not current_user.hashed_password or not verify_password(
+        payload.current_password, current_user.hashed_password
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect"
+        )
+
+    # Validate new password strength
+    ok, message = validate_password(payload.new_password)
+    if not ok:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+
+    # Prevent reusing the same password
+    if verify_password(payload.new_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current password",
+        )
+
+    # Hash and update
+    new_hashed = hash_password(payload.new_password)
+    try:
+        await user_model.update_password_by_id(current_user.id, new_hashed)
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update password",
+        ) from None
+
+    return {"detail": "Password updated successfully"}
+
+
+@router.get("/me", response_model=UserRedirectResponse)
 async def read_users_me(current_user: Annotated[User, Depends(get_current_user)]):
-    return current_user
+    return UserRedirectResponse(user_type=current_user.user_type, entity_id=current_user.entity_id)
 
 
 @router.get("/all", response_model=list[User])
@@ -210,3 +264,8 @@ async def get_user(user_id: str):
     print(user_id)
     user = await user_model.get_by_id(user_id)
     return user
+
+
+@router.delete("/clear", response_model=None)
+async def clear_users():
+    return await user_model.delete_all_users()
