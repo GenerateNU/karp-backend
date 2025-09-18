@@ -1,7 +1,8 @@
+from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
-from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequestDTO
+from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequestDTO, Status
 
 
 class EventModel:
@@ -10,6 +11,8 @@ class EventModel:
 
     async def create_event(self, event: CreateEventRequest) -> Event:
         event_data = event.model_dump()
+        event_data["created_at"] = datetime.now()
+        event_data["status"] = Status.DRAFT
 
         await self.collection.insert_one(event_data)
 
