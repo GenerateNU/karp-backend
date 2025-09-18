@@ -8,12 +8,12 @@ from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusReques
 router = APIRouter()
 
 
-@router.put("/new", response_model=Event)
+@router.post("/new", response_model=Event)
 async def create_event(event: Annotated[CreateEventRequest, Body(...)]) -> Event:
     return await event_model.create_event(event)
 
 
-@router.post("/{event_id}", response_model=Event | None)
+@router.put("/{event_id}", response_model=Event | None)
 async def update_event_status(
     event_id: str, event: Annotated[UpdateEventStatusRequestDTO, Body(...)]
 ) -> Event | None:
