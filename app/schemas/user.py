@@ -1,47 +1,27 @@
-from pydantic import BaseModel, EmailStr
+from enum import Enum
+
+from pydantic import BaseModel, EmailStr, Field
 
 
-class UserBase(BaseModel):
+class UserType(str, Enum):
+    VOLUNTEER = "VOLUNTEER"
+    VENDOR = "VENDOR"
+    ORGANIZATION = "ORGANIZATION"
+    ADMIN = "ADMIN"
+
+
+class User(BaseModel):
+    id: str
     email: EmailStr
-    first_name: str | None = None
-    last_name: str | None = None
-
-    class Config:
-        from_attributes = True
-
-
-class UserCreate(UserBase):
     username: str
-    password: str
+    hashed_password: str = Field(exclude=True)
+    first_name: str
+    last_name: str
+    user_type: UserType
+    entity_id: str | None = None
 
     class Config:
         from_attributes = True
-
-
-class User(UserBase):
-    id: str
-    username: str
-
-    class Config:
-        from_attributes = True
-
-
-class UserInDB(UserBase):
-    id: str
-    username: str
-    hashed_password: str
-
-    class Config:
-        from_attributes = True
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    email: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -51,3 +31,30 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class UserRedirectResponse(BaseModel):
+    user_type: UserType
+    entity_id: str | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class CreateUserRequest(BaseModel):
+    username: str
+    email: EmailStr
+    password: str
+    first_name: str
+    last_name: str
+    user_type: UserType
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class ResetPasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
