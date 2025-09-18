@@ -29,22 +29,5 @@ app.include_router(users.router, prefix="/users", tags=["users"])
 app.include_router(persons.router, prefix="/persons", tags=["persons"])
 
 app.include_router(vendors.router, prefix="/vendors", tags=["vendors"])
-app.include_router(health.router, prefix="", tags=["Health"])
 
 app.include_router(event.router, prefix="/events", tags=["events"])
-
-# Login
-@app.post("/token", response_model=dict)
-async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    user = await user_model.get_by_email(form_data.username)
-    if not user or not verify_password(form_data.password, user["hashed_password"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user["email"]}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
