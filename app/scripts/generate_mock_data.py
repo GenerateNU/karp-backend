@@ -27,7 +27,7 @@ orders = db["orders"]
 events = db["events"]
 volunteer_regs = db["volunteer_registrations"]
 
-# 2. Create Vendors
+# Create Vendors
 vendor_docs = []
 for _ in range(3):
     vendor_docs.append(
@@ -41,7 +41,7 @@ for _ in range(3):
     )
 vendors.insert_many(vendor_docs)
 
-# 3. Create Items linked to Vendors
+# Create Items linked to Vendors
 item_docs = []
 for vendor in vendor_docs:
     for _ in range(4):
@@ -58,7 +58,7 @@ for vendor in vendor_docs:
         item_docs.append(item)
 items.insert_many(item_docs)
 
-# 4. Volunteers
+# Create Volunteers
 volunteer_docs = []
 for _ in range(5):
     volunteer_docs.append(
@@ -77,7 +77,7 @@ for _ in range(5):
     )
 volunteers.insert_many(volunteer_docs)
 
-# 5. Organizations + Events
+# Create Organizations + Events
 org_docs, event_docs = [], []
 for _ in range(10):
     org_id = ObjectId()
@@ -106,6 +106,7 @@ for _ in range(10):
 organizations.insert_many(org_docs)
 events.insert_many(event_docs)
 
+# Volunteer Registration
 volunteer_reg_docs = []
 for event in event_docs:
     for _ in range(5):
@@ -130,6 +131,7 @@ for event in event_docs:
         )
 volunteer_regs.insert_many(volunteer_reg_docs)
 
+# Create Orders
 order_docs = []
 for item in item_docs:
     for _ in range(5):
@@ -146,7 +148,7 @@ for item in item_docs:
         )
 orders.insert_many(order_docs)
 
-# 6. Memberships (AuthUser to Entities)
+# Create Memberships
 membership_docs = []
 for _ in range(20):
     entity_choice = random.choice(["vendor", "volunteer", "organization"])
