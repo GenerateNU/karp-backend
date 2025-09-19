@@ -36,6 +36,7 @@ for _ in range(3):
             "name": fake.company(),
             "businessType": random.choice(["Food", "Clothing", "Art"]),
             "isActive": random.choice([True, False]),
+            "isApproved": random.choice([True, False]),
         }
     )
 vendors.insert_many(vendor_docs)
@@ -99,6 +100,7 @@ for _ in range(10):
             "name": fake.company(),
             "description": fake.text(),
             "isActive": random.choice([True, False]),
+            "isApproved": random.choice([True, False]),
         }
     )
 organizations.insert_many(org_docs)
