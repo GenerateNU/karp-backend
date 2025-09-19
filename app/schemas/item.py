@@ -16,11 +16,11 @@ class Item(BaseModel):
 
 class CreateItemRequest(BaseModel):
     name: str
-    expiration: str  # should be in DD-MM-YYYY H:M:S format
+    expiration: datetime
 
 
 class UpdateItemRequest(BaseModel):
     name: str | None = None
     price: int | None = None
-    expiration: str | None = None
+    expiration: datetime | None = None
     status: str | None = None
