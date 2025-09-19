@@ -45,5 +45,11 @@ class UserModel:
     async def update_entity_id_by_id(self, user_id: str, entity_id: str) -> None:
         await self.collection.update_one({"id": user_id}, {"$set": {"entity_id": entity_id}})
 
+    async def owns_entity(self, user_id: str, entity_id: str) -> bool:
+        user = await user_model.get_by_id(user_id)
+        if user and user.entity_id == entity_id:
+            return True
+        return False
+
 
 user_model = UserModel()
