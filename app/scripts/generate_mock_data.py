@@ -35,8 +35,9 @@ for _ in range(3):
             "_id": ObjectId(),
             "name": fake.company(),
             "businessType": random.choice(["Food", "Clothing", "Art"]),
-            "isActive": random.choice([True, False]),
-            "isApproved": random.choice([True, False]),
+            "status": random.choice(
+                ["approved", "in review", "rejected", "deleted"]
+            ),  # NEW: have a status enum with approved, in review, rejected, deleted
         }
     )
 vendors.insert_many(vendor_docs)
@@ -89,7 +90,9 @@ for _ in range(10):
             "startDateTime": datetime.utcnow(),
             "endDateTime": datetime.utcnow() + timedelta(hours=5),
             "organizationID": org_id,
-            "status": random.choice(["completed", "draft", "published", "cancelled"]),
+            "status": random.choice(
+                ["completed", "draft", "published", "cancelled", "deleted"]
+            ),  # NEW: add deleted
             "maxVolunteers": 30,
             "coins": random.randint(0, 100),
         }
@@ -99,8 +102,9 @@ for _ in range(10):
             "_id": org_id,
             "name": fake.company(),
             "description": fake.text(),
-            "isActive": random.choice([True, False]),
-            "isApproved": random.choice([True, False]),
+            "status": random.choice(
+                ["approved", "in review", "rejected", "deleted"]
+            ),  # NEW: have a status enum with approved, in review, rejected, deleted
         }
     )
 organizations.insert_many(org_docs)
