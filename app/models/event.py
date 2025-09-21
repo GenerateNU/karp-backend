@@ -1,5 +1,7 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
 from bson import ObjectId
+from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
@@ -14,7 +16,7 @@ class EventModel:
         ev = Event(
             **event.model_dump(),
             status=Status.DRAFT,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         doc = ev.model_dump(mode="json", by_alias=True, exclude={"_id", "id"})
         result = await self.collection.insert_one(doc)
@@ -40,10 +42,13 @@ class EventModel:
     ) -> Event | None:
         event_data = await self.collection.find_one({"_id": ObjectId(event_id)})
         if event_data:
-            updated_data = event.model_dump(mode="json", by_alias=True, exclude_none=True, exclude={"_id", "id"})
+            updated_data = event.model_dump(
+                mode="json", by_alias=True, exclude_none=True, exclude={"_id", "id"}
+            )
             await self.collection.update_one({"_id": ObjectId(event_id)}, {"$set": updated_data})
             event_data.update(updated_data)
             return Event(**event_data)
+        raise HTTPException(status_code=404, detail="No event with this ID was found")
         return None
 
     async def delete_event_by_id(self, event_id: str) -> None:
