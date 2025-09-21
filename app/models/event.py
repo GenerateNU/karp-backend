@@ -29,7 +29,9 @@ class EventModel:
 
     async def get_event_by_id(self, event_id: str) -> Event | None:
         event_data = await self.collection.find_one({"_id": ObjectId(event_id)})
-        return Event(**event_data) if event_data else None
+        if event_data:
+            return Event(**event_data)
+        raise HTTPException(status_code=404, detail="No event with this ID was found")
 
     async def get_events_by_organization(self, organization_id: str) -> list[Event]:
         events_list = await self.collection.find({"organization_id": organization_id}).to_list(
@@ -49,7 +51,6 @@ class EventModel:
             event_data.update(updated_data)
             return Event(**event_data)
         raise HTTPException(status_code=404, detail="No event with this ID was found")
-        return None
 
     async def delete_event_by_id(self, event_id: str) -> None:
         await self.collection.delete_one({"_id": ObjectId(event_id)})
