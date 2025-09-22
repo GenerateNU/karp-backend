@@ -6,8 +6,10 @@ from app.api.endpoints.users import get_current_user
 from app.models.item import item_model
 from app.schemas.item import CreateItemRequest, Item, UpdateItemRequest
 from app.schemas.user import User, UserType
+from app.services.item import ItemService
 
 router = APIRouter()
+item_service = ItemService(item_model)
 
 
 @router.post("/new", response_model=Item)
@@ -37,22 +39,27 @@ async def get_item(item_id: str) -> Item:
 
 @router.put("/deactivate/{item_id}")
 async def deactivate_item(item_id: str, current_user: Annotated[User, Depends(get_current_user)]):
-    if current_user.user_type != UserType.VENDOR:
+
+    if current_user.entity_id is None:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only vendors can deactivate items",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You are not associated with any vendor",
         )
+
+    await item_service.authorize_vendor(item_id, current_user.id)
     await item_model.deactivate_item(item_id)
     return {"message": "Item deactivated successfully"}
 
 
 @router.put("/activate/{item_id}")
 async def activate_item(item_id: str, current_user: Annotated[User, Depends(get_current_user)]):
-    if current_user.user_type != UserType.VENDOR:
+    if current_user.entity_id is None:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only vendors can activate items",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You are not associated with any vendor",
         )
+
+    await item_service.authorize_vendor(item_id, current_user.id)
     await item_model.activate_item(item_id)
     return {"message": "Item activated successfully"}
 
@@ -63,11 +70,12 @@ async def update_item(
     item_id: str,
     current_user: Annotated[User, Depends(get_current_user)],
 ):
-    if current_user.user_type != UserType.VENDOR:
+    if current_user.entity_id is None:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only vendors can update items",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You are not associated with any vendor",
         )
 
+    await item_service.authorize_vendor(item_id, current_user.id)
     await item_model.update_item(updated_item, item_id)
     return {"message": "Item updated successfully"}
