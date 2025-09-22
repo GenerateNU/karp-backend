@@ -1,11 +1,20 @@
+from enum import Enum
+
 from pydantic import BaseModel
+
+
+class Status(str, Enum):
+    APPROVED = "APPROVED"
+    IN_REVIEW = "IN_REVIEW"
+    REJECTED = "REJECTED"
+    DELETED = "DELETED"
 
 
 class Organization(BaseModel):
     id: str
     name: str
     description: str
-    isActive: bool = True
+    status: Status
 
     class Config:
         from_attributes = True

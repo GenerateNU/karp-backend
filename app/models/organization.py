@@ -6,6 +6,7 @@ from app.models.user import user_model
 from app.schemas.organization import (
     CreateOrganizationRequest,
     Organization,
+    Status,
     UpdateOrganizationRequest,
 )
 
@@ -15,12 +16,12 @@ class OrganizationModel:
         self.collection: AsyncIOMotorCollection = db["organizations"]
 
     async def get_all_organizations(self) -> list[Organization]:
-        orgs_list = await self.collection.find({"isActive": True}).to_list(length=None)
+        orgs_list = await self.collection.find({"status": Status.APPROVED}).to_list(length=None)
 
         return [self._to_organization(org) for org in orgs_list]
 
     async def get_organization_by_id(self, id: str) -> Organization | None:
-        org = await self.collection.find_one({"_id": ObjectId(id), "isActive": True})
+        org = await self.collection.find_one({"_id": ObjectId(id), "status": Status.APPROVED})
 
         if org:
             return self._to_organization(org)
@@ -30,7 +31,7 @@ class OrganizationModel:
         self, organization: CreateOrganizationRequest, user_id: str
     ) -> Organization:
         org_data = organization.model_dump()
-        org_data["isActive"] = True
+        org_data["status"] = Status.IN_REVIEW
 
         result = await self.collection.insert_one(org_data)
 
@@ -50,7 +51,9 @@ class OrganizationModel:
         return self._to_organization(updated_doc)
 
     async def delete_organization(self, id: str) -> None:
-        await self.collection.update_one({"_id": ObjectId(id)}, {"$set": {"isActive": False}})
+        await self.collection.update_one(
+            {"_id": ObjectId(id)}, {"$set": {"status": Status.DELETED}}
+        )
 
     def _to_organization(self, doc) -> Organization:
         org_data = doc.copy()
