@@ -2,8 +2,7 @@ from typing import TYPE_CHECKING
 
 from app.database.mongodb import db
 from app.models.user import user_model
-from app.schemas.user import Volunteer
-from app.schemas.volunteer import CreateVolunteerRequest, UpdateVolunteerRequest
+from app.schemas.volunteer import CreateVolunteerRequest, UpdateVolunteerRequest, Volunteer
 
 if TYPE_CHECKING:
     from motor.motor_asyncio import AsyncIOMotorCollection
