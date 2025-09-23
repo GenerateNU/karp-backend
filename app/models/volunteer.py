@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 class VolunteerModel:
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["volunteers"]
-        self.registrations: AsyncIOMotorCollection = db["volunteer_registrations"]
 
     async def get_volunteer_by_id(self, volunteer_id: str) -> Volunteer:
         volunteer = await self.collection.find_one({"_id": ObjectId(volunteer_id)})
