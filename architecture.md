@@ -1,23 +1,20 @@
-## Architecture
+# Architecture
 
 There are usually three main layers: 
 - Route (or Controller)
 - Service
 - Model 
 
-1. Route / Controller Layer
+## Route / Controller Layer
 
-Purpose: Handles HTTP requests and responses, Calls the service layer for processing, Returns validated responses 
+- Purpose: Handles HTTP requests and responses, Calls the service layer for processing, Returns validated responses 
 
-2. Service Layer
+## Service Layer
 
-Purpose: Encapsulates business logic
+- Purpose: Encapsulates business logic
+- The service layer sits between routes and models.
+- Handles things like: Complex Validations, Checking permissions or ownership
 
-The service layer sits between routes and models.
+## Model Layer
 
-Handles things like: Complex Validations, Checking permissions or ownership
-
-3. Model Layer
-
-Responsible for defining data structures and interacting with the db (queries)
-
+- Responsible for defining data structures and interacting with the db (queries)
