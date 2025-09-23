@@ -6,10 +6,10 @@ from app.api.endpoints import (
     health,
     item,
     organization,
+    registration,
     user,
     vendor,
     volunteer,
-    volunteer_registration,
 )
 
 app = FastAPI()
@@ -45,5 +45,5 @@ app.include_router(event.router, prefix="/event", tags=["event"])
 app.include_router(volunteer.router, prefix="/volunteer", tags=["volunteer"])
 
 app.include_router(
-    volunteer_registration.router, prefix="/volunteer-registration", tags=["volunteer-registration"]
+    registration.router, prefix="/volunteer-registration", tags=["volunteer-registration"]
 )
