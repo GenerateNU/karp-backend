@@ -1,10 +1,17 @@
 from typing import TYPE_CHECKING
 
 from bson import ObjectId
+from fastapi import HTTPException, status
 
 from app.database.mongodb import db
+from app.models.event import event_model
 from app.models.user import user_model
-from app.schemas.volunteer import CreateVolunteerRequest, UpdateVolunteerRequest, Volunteer
+from app.schemas.volunteer import (
+    CreateVolunteerRequest,
+    EventType,
+    UpdateVolunteerRequest,
+    Volunteer,
+)
 
 if TYPE_CHECKING:
     from motor.motor_asyncio import AsyncIOMotorCollection
@@ -20,6 +27,9 @@ class VolunteerModel:
         return self._to_volunteer(volunteer) if volunteer else None
 
     async def get_volunteers_by_event(self, event_id: str) -> list[Volunteer]:
+        event = await event_model.get_event_by_id(event_id)
+        if not event:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
         registrations = await self.registrations.find({"eventId": ObjectId(event_id)}).to_list(
             length=None
         )
@@ -35,6 +45,15 @@ class VolunteerModel:
 
     async def create_volunteer(self, volunteer: CreateVolunteerRequest, user_id: str) -> Volunteer:
         volunteer_data = volunteer.model_dump()
+        prefs = volunteer_data.get("preferences", [])
+        if prefs:
+            valid = {e.value for e in EventType}
+            invalid = [p for p in prefs if p not in valid]
+            if invalid:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid preferences: {invalid}",
+                )
         result = await self.collection.insert_one(volunteer_data)
         await user_model.update_entity_id_by_id(user_id, str(result.inserted_id))
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
