@@ -25,7 +25,7 @@ org_apps = db["org_applications"]
 items = db["items"]
 orders = db["orders"]
 events = db["events"]
-volunteer_regs = db["volunteer_registrations"]
+registrations = db["registrations"]
 
 # Create Vendors
 vendor_docs = []
@@ -111,7 +111,7 @@ organizations.insert_many(org_docs)
 events.insert_many(event_docs)
 
 # Volunteer Registration
-volunteer_reg_docs = []
+registration_docs = []
 for event in event_docs:
     for _ in range(5):
         volunteer = random.choice(volunteer_docs)
@@ -122,7 +122,7 @@ for event in event_docs:
             clocked_in, clocked_out = True, True
         else:
             clocked_in, clocked_out = True, False
-        volunteer_reg_docs.append(
+        registration_docs.append(
             {
                 "_id": ObjectId(),
                 "event_id": event["_id"],
@@ -133,7 +133,7 @@ for event in event_docs:
                 "clocked_out": clocked_out,
             }
         )
-volunteer_regs.insert_many(volunteer_reg_docs)
+registrations.insert_many(registration_docs)
 
 # Create Orders
 order_docs = []

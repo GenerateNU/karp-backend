@@ -11,7 +11,7 @@ from app.schemas.registration import (
 
 class RegistrationModel:
     def __init__(self):
-        self.registrations: AsyncIOMotorCollection = db["volunteer_registrations"]
+        self.registrations: AsyncIOMotorCollection = db["registrations"]
 
     async def get_volunteers_by_event(self, event_id: str) -> list[Registration]:
         event = await event_model.get_event_by_id(event_id)
@@ -26,7 +26,7 @@ class RegistrationModel:
                 # joins with memberships tables
                 "$lookup": {
                     "from": "memberships",  # join memberships
-                    "localField": "volunteer_id",  # volunteer id in volunteer_registrations
+                    "localField": "volunteer_id",  # volunteer id in registrations
                     "foreignField": "entity_id",  # entity_id in memberships
                     "as": "membership_docs",
                 }
@@ -49,10 +49,10 @@ class RegistrationModel:
         return [self._to_volunteer(volunteer) for volunteer in volunteers_docs]
 
     def _to_volunteer(self, doc) -> Registration:
-        volunteer_reg_data = doc.copy()
-        volunteer_reg_data["id"] = str(volunteer_reg_data["_id"])
-        volunteer_reg_data["volunteer_id"] = str(volunteer_reg_data["volunteer_id"])
-        return Registration(**volunteer_reg_data)
+        registration_data = doc.copy()
+        registration_data["id"] = str(registration_data["_id"])
+        registration_data["volunteer_id"] = str(registration_data["volunteer_id"])
+        return Registration(**registration_data)
 
 
 registration_model = RegistrationModel()
