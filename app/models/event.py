@@ -26,7 +26,6 @@ class EventModel:
 
     async def get_all_events(self) -> list[Event]:
         events_list = await self.collection.find().to_list(length=None)
-        print(events_list)
         return [self.to_event(event) for event in events_list]
 
     async def get_event_by_id(self, event_id: str) -> Event | None:
@@ -78,7 +77,6 @@ class EventModel:
 
     # converting id and org_id to str to display all event fields
     def to_event(self, doc) -> Event:
-        print(doc)
         event_data = doc.copy()
         event_data["id"] = str(event_data["_id"])
         event_data["organization_id"] = str(event_data["organization_id"])

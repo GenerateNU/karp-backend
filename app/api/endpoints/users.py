@@ -261,7 +261,6 @@ async def get_all_users():
 @router.get("/{user_id}", response_model=User)
 async def get_user(user_id: str):
     """get user by id"""
-    print(user_id)
     user = await user_model.get_by_id(user_id)
     return user
 

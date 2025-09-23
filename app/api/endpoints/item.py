@@ -17,8 +17,6 @@ async def post_item(
     item: Annotated[CreateItemRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> Item:
-
-    print(current_user.user_type)
     if current_user.user_type != UserType.VENDOR:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

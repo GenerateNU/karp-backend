@@ -17,7 +17,6 @@ class VolunteerRegistrationModel:
         event = await event_model.get_event_by_id(event_id)
         if not event:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
-        print(event)
 
         pipeline = [
             {
@@ -47,7 +46,6 @@ class VolunteerRegistrationModel:
         ]
 
         volunteers_docs = await self.registrations.aggregate(pipeline).to_list(length=None)
-        print(volunteers_docs[0])
         return [self._to_volunteer(volunteer) for volunteer in volunteers_docs]
 
     def _to_volunteer(self, doc) -> VolunteerRegistration:
