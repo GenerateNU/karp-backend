@@ -1,4 +1,5 @@
-## Common architecture in FastAPI 
+## Architecture
+
 There are usually three main layers: 
 - Route (or Controller)
 - Service
