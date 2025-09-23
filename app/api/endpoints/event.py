@@ -11,8 +11,6 @@ from app.services.event import EventService
 router = APIRouter()
 event_service = EventService(event_model)
 
-# GET
-
 
 @router.get("/all", response_model=list[Event])
 async def get_events() -> list[Event]:
@@ -29,9 +27,6 @@ async def get_event_by_id(event_id: str) -> Event | None:
 async def get_events_by_org(organization_id: str) -> list[Event]:
     event_list = await event_model.get_events_by_organization(organization_id)
     return event_list
-
-
-# POST
 
 
 @router.post("/new", response_model=Event)
@@ -52,9 +47,6 @@ async def create_event(
         )
 
     return await event_model.create_event(event, current_user.id)
-
-
-# PUT
 
 
 @router.put("/{event_id}", response_model=Event | None)
@@ -81,9 +73,6 @@ async def update_event_status(
     return updated_event
 
 
-# DELETE
-
-
 @router.delete("/{event_id}", response_model=None)
 async def clear_event_by_id(
     event_id: str, current_user: Annotated[User, Depends(get_current_user)]
@@ -104,7 +93,6 @@ async def clear_event_by_id(
     return await event_model.delete_event_by_id(event_id)
 
 
-# Deletes all Events -- Not Sure if we need
 # @router.delete("/clear", response_model=None)
 # async def clear_events() -> None:
 #     return await event_model.delete_all_events()
