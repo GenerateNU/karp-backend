@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.endpoints import event, health, item, organizations, users, vendors
+from app.api.endpoints import event, health, item, organizations, users, vendors, volunteers
 
 app = FastAPI()
 
@@ -33,3 +33,5 @@ app.include_router(vendors.router, prefix="/vendors", tags=["vendors"])
 app.include_router(organizations.router, prefix="/organizations", tags=["organizations"])
 
 app.include_router(event.router, prefix="/events", tags=["events"])
+
+app.include_router(volunteers.router, prefix="/volunteers", tags=["volunteers"])
