@@ -4,8 +4,10 @@ from pydantic import BaseModel
 
 
 class Item(BaseModel):
+    id: str
     name: str
     status: str
+    vendor_id: str
     timePosted: datetime = datetime.now()
     expiration: datetime
     price: int

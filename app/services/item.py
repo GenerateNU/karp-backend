@@ -17,7 +17,7 @@ class ItemService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Item not found",
             )
-        if item["vendor_id"] != vendor_id:
+        if item.vendor_id != vendor_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to modify this item",
