@@ -17,7 +17,7 @@ from app.schemas.user import (
     UserRedirectResponse,
     UserResponse,
 )
-from app.utils import create_access_token, hash_password, settings, verify_password
+from app.utils.user import create_access_token, hash_password, settings, verify_password
 
 router = APIRouter()
 
