@@ -30,7 +30,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include the users router
 app.include_router(health.router, prefix="", tags=["health"])
 
 app.include_router(users.router, prefix="/users", tags=["users"])
