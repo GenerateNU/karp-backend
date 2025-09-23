@@ -48,7 +48,7 @@ class CreateEventRequest(BaseModel):
     coins: int
 
 
-class UpdateEventStatusRequestDTO(BaseModel):
+class UpdateEventStatusRequest(BaseModel):
     status: Status | None = None
     name: str | None = None
     location: str | None = None

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from app.api.endpoints.users import get_current_user
 from app.models.event import event_model
-from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequestDTO
+from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
 from app.schemas.user import User, UserType
 from app.services.event import EventService
 
@@ -52,7 +52,7 @@ async def create_event(
 @router.put("/{event_id}", response_model=Event | None)
 async def update_event_status(
     event_id: str,
-    event: Annotated[UpdateEventStatusRequestDTO, Body(...)],
+    event: Annotated[UpdateEventStatusRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> Event | None:
 
