@@ -16,8 +16,8 @@ class ItemModel:
     async def create_item(self, item: CreateItemRequest, vendor_id: str) -> Item:
         item_data = item.model_dump()
 
-        item_data["timePosted"] = datetime.now()
-        item_data["vendorId"] = ObjectId(vendor_id)
+        item_data["time_posted"] = datetime.now()
+        item_data["vendor_id"] = ObjectId(vendor_id)
         item_data["status"] = "active"
         item_data["price"] = 30  # set to default 30 for now
 
@@ -76,7 +76,7 @@ class ItemModel:
     def to_item(self, doc) -> Item:
         item_data = doc.copy()
         item_data["id"] = str(item_data["_id"])
-        item_data["vendor_id"] = str(item_data["vendorId"])
+        item_data["vendor_id"] = str(item_data["vendor_id"])
         return Item(**item_data)
 
 

@@ -6,11 +6,11 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class Status(str, Enum):
-    PUBLISHED = "published"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
-    DRAFT = "draft"
-    DELETED = "deleted"
+    PUBLISHED = "PUBLISHED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    DRAFT = "DRAFT"
+    DELETED = "DELETED"
 
 
 class Event(BaseModel):
@@ -44,18 +44,17 @@ class CreateEventRequest(BaseModel):
     location: str
     start_date_time: datetime
     end_date_time: datetime
-    organization_id: str
     max_volunteers: int
     coins: int
 
 
 class UpdateEventStatusRequestDTO(BaseModel):
-    status: Status
-    name: str
-    location: str
-    max_volunteers: int
-    start_date_time: datetime
-    end_date_time: datetime
-    coins: int
+    status: Status | None = None
+    name: str | None = None
+    location: str | None = None
+    max_volunteers: int | None = None
+    start_date_time: datetime | None = None
+    end_date_time: datetime | None = None
+    coins: int | None = None
 
     model_config = ConfigDict(use_enum_values=True, from_attributes=True)

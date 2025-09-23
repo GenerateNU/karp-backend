@@ -34,7 +34,7 @@ for _ in range(3):
         {
             "_id": ObjectId(),
             "name": fake.company(),
-            "businessType": random.choice(["Food", "Clothing", "Art"]),
+            "business_type": random.choice(["Food", "Clothing", "Art"]),
             "status": random.choice(
                 ["approved", "in review", "rejected", "deleted"]
             ),  # NEW: have a status enum with approved, in review, rejected, deleted
@@ -51,9 +51,9 @@ for vendor in vendor_docs:
             "name": fake.word(),
             "description": fake.sentence(),
             "price": random.randint(5, 100),
-            "vendorId": vendor["_id"],
+            "vendor_id": vendor["_id"],
             "status": random.choice(["draft", "active", "inactive"]),
-            "timePosted": datetime.utcnow(),
+            "time_posted": datetime.utcnow(),
             "expiration": datetime.utcnow() + timedelta(days=30),
         }
         item_docs.append(item)
@@ -73,7 +73,7 @@ for _ in range(5):
                     ["Animal Shelter", "Homeless Shelter", "Food Pantry", "Cleanup", "Tutoring"]
                 )
             ],
-            "isActive": random.choice([True, False]),
+            "is_active": random.choice([True, False]),
         }
     )
 volunteers.insert_many(volunteer_docs)
@@ -87,13 +87,13 @@ for _ in range(10):
             "_id": ObjectId(),
             "name": fake.catch_phrase(),
             "location": fake.city(),
-            "startDateTime": datetime.utcnow(),
-            "endDateTime": datetime.utcnow() + timedelta(hours=5),
-            "organizationID": org_id,
+            "start_date_time": datetime.utcnow(),
+            "end_date_time": datetime.utcnow() + timedelta(hours=5),
+            "organization_id": org_id,
             "status": random.choice(
-                ["completed", "draft", "published", "cancelled", "deleted"]
+                ["COMPLETED", "DRAFT", "PUBLISHED", "CANCELLED", "DELETED"]
             ),  # NEW: add deleted
-            "maxVolunteers": 30,
+            "max_volunteers": 30,
             "coins": random.randint(0, 100),
         }
         event_docs.append(ev)
@@ -103,7 +103,7 @@ for _ in range(10):
             "name": fake.company(),
             "description": fake.text(),
             "status": random.choice(
-                ["approved", "in review", "rejected", "deleted"]
+                ["APPROVED", "IN_REVIEW", "REJECTED", "DELETED"]
             ),  # NEW: have a status enum with approved, in review, rejected, deleted
         }
     )
@@ -125,12 +125,12 @@ for event in event_docs:
         volunteer_reg_docs.append(
             {
                 "_id": ObjectId(),
-                "eventId": event["_id"],
-                "volunteerId": volunteer["_id"],
-                "registeredAt": datetime.now(),
-                "registrationStatus": reg_status,
-                "clockedIn": clocked_in,
-                "clockedOut": clocked_out,
+                "event_id": event["_id"],
+                "volunteer_id": volunteer["_id"],
+                "registered_at": datetime.now(),
+                "registration_status": reg_status,
+                "clocked_in": clocked_in,
+                "clocked_out": clocked_out,
             }
         )
 volunteer_regs.insert_many(volunteer_reg_docs)
@@ -144,10 +144,10 @@ for item in item_docs:
         order_docs.append(
             {
                 "_id": ObjectId(),
-                "itemId": item["_id"],
-                "volunteerId": volunteer["_id"],
-                "placedAt": datetime.now(),
-                "orderStatus": random.choice(["pending pickup", "completed", "cancelled"]),
+                "item_id": item["_id"],
+                "volunteer_id": volunteer["_id"],
+                "placed_at": datetime.now(),
+                "order_status": random.choice(["pending pickup", "completed", "cancelled"]),
             }
         )
 orders.insert_many(order_docs)
@@ -167,11 +167,11 @@ for _ in range(20):
             "_id": ObjectId(),
             "email": fake.email(),
             "username": fake.user_name(),
-            "hashedPassword": fake.password(),
-            "firstName": fake.first_name(),
-            "lastName": fake.last_name(),
-            "userType": entity_choice,
-            "entityId": entity["_id"],
+            "hashed_password": fake.password(),
+            "first_name": fake.first_name(),
+            "last_name": fake.last_name(),
+            "user_type": entity_choice,
+            "entity_id": entity["_id"],
         }
     )
 memberships.insert_many(membership_docs)
