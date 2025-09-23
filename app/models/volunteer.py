@@ -4,7 +4,6 @@ from bson import ObjectId
 from fastapi import HTTPException, status
 
 from app.database.mongodb import db
-from app.models.event import event_model
 from app.models.user import user_model
 from app.schemas.volunteer import (
     CreateVolunteerRequest,
@@ -26,18 +25,18 @@ class VolunteerModel:
         volunteer = await self.collection.find_one({"_id": ObjectId(volunteer_id)})
         return self._to_volunteer(volunteer) if volunteer else None
 
-    async def get_volunteers_by_event(self, event_id: str) -> list[Volunteer]:
-        event = await event_model.get_event_by_id(event_id)
-        if not event:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
-        registrations = await self.registrations.find({"eventId": ObjectId(event_id)}).to_list(
-            length=None
-        )
-        volunteer_ids = [reg["volunteerId"] for reg in registrations if reg.get("volunteerId")]
-        if not volunteer_ids:
-            return []
-        docs = await self.collection.find({"_id": {"$in": volunteer_ids}}).to_list(length=None)
-        return [self._to_volunteer(d) for d in docs]
+    # async def get_volunteers_by_event(self, event_id: str) -> list[Volunteer]:
+    #     event = await event_model.get_event_by_id(event_id)
+    #     if not event:
+    #         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+    #     registrations = await self.registrations.find({"eventId": ObjectId(event_id)}).to_list(
+    #         length=None
+    #     )
+    #     volunteer_ids = [reg["volunteerId"] for reg in registrations if reg.get("volunteerId")]
+    #     if not volunteer_ids:
+    #         return []
+    #     docs = await self.collection.find({"_id": {"$in": volunteer_ids}}).to_list(length=None)
+    #     return [self._to_volunteer(d) for d in docs]
 
     async def get_all_volunteers(self) -> list[Volunteer]:
         volunteers_list = await self.collection.find().to_list(length=None)
@@ -61,7 +60,7 @@ class VolunteerModel:
 
     async def delete_volunteer(self, volunteer_id: str):
         await self.collection.update_one(
-            {"_id": ObjectId(volunteer_id)}, {"$set": {"isActive": False}}
+            {"_id": ObjectId(volunteer_id)}, {"$set": {"is_active": False}}
         )
 
     async def update_volunteer(

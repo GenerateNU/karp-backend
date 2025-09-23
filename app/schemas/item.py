@@ -8,7 +8,7 @@ class Item(BaseModel):
     name: str
     status: str
     vendor_id: str
-    timePosted: datetime = datetime.now()
+    time_posted: datetime = datetime.now()
     expiration: datetime
     price: int
 
