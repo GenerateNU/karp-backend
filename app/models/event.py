@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
-from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStatusRequestDTO
+from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStatusRequest
 
 
 class EventModel:
@@ -26,7 +26,6 @@ class EventModel:
 
     async def get_all_events(self) -> list[Event]:
         events_list = await self.collection.find().to_list(length=None)
-        print(events_list)
         return [self.to_event(event) for event in events_list]
 
     async def get_event_by_id(self, event_id: str) -> Event | None:
@@ -43,7 +42,7 @@ class EventModel:
         return [Event(**event) for event in events_list]
 
     async def update_event_status(
-        self, event_id: str, event: UpdateEventStatusRequestDTO
+        self, event_id: str, event: UpdateEventStatusRequest
     ) -> Event | None:
         event_data = await self.collection.find_one({"_id": ObjectId(event_id)})
         if event_data:
@@ -78,7 +77,6 @@ class EventModel:
 
     # converting id and org_id to str to display all event fields
     def to_event(self, doc) -> Event:
-        print(doc)
         event_data = doc.copy()
         event_data["id"] = str(event_data["_id"])
         event_data["organization_id"] = str(event_data["organization_id"])

@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class VolunteerRegistration(BaseModel):
+class Registration(BaseModel):
     id: str
     first_name: str
     last_name: str

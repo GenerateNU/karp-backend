@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from app.api.endpoints.users import get_current_user
+from app.api.endpoints.user import get_current_user
 from app.models.user import user_model
 from app.models.volunteer import volunteer_model
 from app.schemas.user import User, UserType

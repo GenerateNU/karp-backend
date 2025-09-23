@@ -20,6 +20,7 @@ class Volunteer(BaseModel):
     coins: int
     preferences: list[EventType]  # come back
     is_active: bool = True
+    experience: int = 0
 
     class Config:
         from_attributes = True

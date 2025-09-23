@@ -2,16 +2,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from app.api.endpoints.users import get_current_user
+from app.api.endpoints.user import get_current_user
 from app.models.event import event_model
-from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequestDTO
+from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
 from app.schemas.user import User, UserType
 from app.services.event import EventService
 
 router = APIRouter()
 event_service = EventService(event_model)
-
-# GET
 
 
 @router.get("/all", response_model=list[Event])
@@ -29,9 +27,6 @@ async def get_event_by_id(event_id: str) -> Event | None:
 async def get_events_by_org(organization_id: str) -> list[Event]:
     event_list = await event_model.get_events_by_organization(organization_id)
     return event_list
-
-
-# POST
 
 
 @router.post("/new", response_model=Event)
@@ -54,13 +49,10 @@ async def create_event(
     return await event_model.create_event(event, current_user.id)
 
 
-# PUT
-
-
 @router.put("/{event_id}", response_model=Event | None)
 async def update_event_status(
     event_id: str,
-    event: Annotated[UpdateEventStatusRequestDTO, Body(...)],
+    event: Annotated[UpdateEventStatusRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> Event | None:
 
@@ -79,9 +71,6 @@ async def update_event_status(
     await event_service.authorize_org(event_id, current_user.id)
     updated_event = await event_model.update_event_status(event_id, event)
     return updated_event
-
-
-# DELETE
 
 
 @router.delete("/{event_id}", response_model=None)
@@ -104,7 +93,6 @@ async def clear_event_by_id(
     return await event_model.delete_event_by_id(event_id)
 
 
-# Deletes all Events -- Not Sure if we need
 # @router.delete("/clear", response_model=None)
 # async def clear_events() -> None:
 #     return await event_model.delete_all_events()
