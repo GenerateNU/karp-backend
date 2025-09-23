@@ -53,9 +53,21 @@ class EventModel:
         raise HTTPException(status_code=404, detail="No event with this ID was found")
 
     async def delete_event_by_id(self, event_id: str) -> None:
-        await self.collection.update_one(
-            {"_id": ObjectId(event_id)}, {"$set": {"status": Status.DELETED}}
-        )
+        event = await self.collection.find_one({"_id": ObjectId(event_id)})
+        if not event:
+            raise HTTPException(status_code=404, detail="Event not found")
+            
+        status = event["status"]
+        if status in [Status.DRAFT, Status.COMPLETED]:
+            await self.collection.update_one(
+                {"_id": ObjectId(event_id)}, {"$set": {"status": Status.DELETED}}
+            )
+        elif status in [Status.PUBLISHED]:
+            await self.collection.update_one(
+                {"_id": ObjectId(event_id)}, {"$set": {"status": Status.CANCELLED}}
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Event cannot be deleted")
 
     async def delete_all_events(self) -> None:
         await self.collection.update_many({}, {"$set": {"status": Status.DELETED}})
