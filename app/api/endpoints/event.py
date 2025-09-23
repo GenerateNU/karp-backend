@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from app.api.endpoints.users import get_current_user
+from app.api.endpoints.user import get_current_user
 from app.models.event import event_model
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
 from app.schemas.user import User, UserType
