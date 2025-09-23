@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from bson import ObjectId
+
 from app.database.mongodb import db
 from app.models.user import user_model
 from app.schemas.volunteer import CreateVolunteerRequest, UpdateVolunteerRequest, Volunteer
@@ -10,17 +12,17 @@ if TYPE_CHECKING:
 
 class VolunteerModel:
     def __init__(self):
-        self.collection: AsyncIOMotorCollection = db["volunteer"]
-        self.registrations: AsyncIOMotorCollection = db["volunteer_registratons"]
+        self.collection: AsyncIOMotorCollection = db["volunteers"]
+        self.registrations: AsyncIOMotorCollection = db["volunteer_registrations"]
 
     async def get_volunteer_by_id(self, volunteer_id: str) -> Volunteer:
-        volunteer = self.collection.find_one({"id": id})
-        if volunteer:
-            return self._to_volunteer(volunteer)
-        return None
+        volunteer = await self.collection.find_one({"_id": ObjectId(volunteer_id)})
+        return self._to_volunteer(volunteer) if volunteer else None
 
     async def get_volunteers_by_event(self, event_id: str) -> list[Volunteer]:
-        registrations = await self.registrations.find({"eventId": event_id}).to_list(length=None)
+        registrations = await self.registrations.find({"eventId": ObjectId(event_id)}).to_list(
+            length=None
+        )
         volunteer_ids = [reg["volunteerId"] for reg in registrations if reg.get("volunteerId")]
         if not volunteer_ids:
             return []
@@ -39,14 +41,16 @@ class VolunteerModel:
         return self._to_volunteer(inserted_doc)
 
     async def delete_volunteer(self, volunteer_id: str):
-        await self.collection.update_one({"_id": volunteer_id}, {"$set": {"isActive": False}})
+        await self.collection.update_one(
+            {"_id": ObjectId(volunteer_id)}, {"$set": {"isActive": False}}
+        )
 
     async def update_volunteer(
         self, volunteer_id: str, volunteer: UpdateVolunteerRequest
     ) -> Volunteer:
         volunteer_data = volunteer.model_dump(exclude_unset=True)
-        await self.collection.update_one({"id": volunteer_id}, {"$set": volunteer_data})
-        updated_doc = await self.collection.find_one({"_id": volunteer_id})
+        await self.collection.update_one({"_id": ObjectId(volunteer_id)}, {"$set": volunteer_data})
+        updated_doc = await self.collection.find_one({"_id": ObjectId(volunteer_id)})
         return self._to_volunteer(updated_doc)
 
     def _to_volunteer(self, doc) -> Volunteer:

@@ -19,7 +19,7 @@ class Volunteer(BaseModel):
     age: int
     coins: int
     preferences: list[EventType]  # come back
-    isActive: bool
+    isActive: bool = True
 
     class Config:
         from_attributes = True

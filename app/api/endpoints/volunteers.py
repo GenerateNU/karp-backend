@@ -20,6 +20,11 @@ async def get_volunteers() -> list[Volunteer]:
     return await volunteer_model.get_all_volunteers()
 
 
+@router.get("/by-event/{event_id}", response_model=list[Volunteer])
+async def get_volunteers_by_event(event_id: str) -> list[Volunteer]:
+    return await volunteer_model.get_volunteers_by_event(event_id)
+
+
 @router.get("/{volunteer_id}", response_model=Volunteer)
 async def get_volunteer_by_id(volunteer_id: str) -> Volunteer:
     volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)
@@ -28,11 +33,6 @@ async def get_volunteer_by_id(volunteer_id: str) -> Volunteer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
 
     return volunteer
-
-
-@router.get("/by-event/{event_id}", response_model=list[Volunteer])
-async def get_volunteers_by_event(event_id: str) -> list[Volunteer]:
-    return await volunteer_model.get_volunteers_by_event(event_id)
 
 
 @router.post("/new", response_model=Volunteer)
@@ -93,4 +93,4 @@ async def delete_volunteer(
             detail="You do not have permission to update this volunteer",
         )
 
-    return await volunteer_model.delete_organization(volunteer_id)
+    return await volunteer_model.delete_volunteer(volunteer_id)
