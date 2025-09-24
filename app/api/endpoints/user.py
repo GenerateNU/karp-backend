@@ -5,7 +5,12 @@ from typing import Annotated
 
 from bson import ObjectId
 from fastapi import APIRouter, Body, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import (
+    OAuth2PasswordBearer,
+    OAuth2PasswordRequestForm,
+    HTTPBearer,
+    HTTPAuthorizationCredentials,
+)
 from jose import JWTError, jwt
 
 from app.models.user import user_model
@@ -27,7 +32,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # OAuth2 scheme
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/oauth2-scheme-token")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="/users/oauth2-scheme-token",
+    auto_error=False,
+)
+
+bearer = HTTPBearer(auto_error=False)
 
 
 def validate_password(password: str) -> tuple[bool, str]:
@@ -61,12 +71,29 @@ def validate_email(email: str) -> tuple[bool, str]:
 
 
 # Get current user
-async def get_current_user(token: str = Depends(oauth2_scheme)):
+async def get_current_user(
+    oauth_token: str | None = Depends(oauth2_scheme),
+    bearer_creds: HTTPAuthorizationCredentials | None = Depends(bearer),
+):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    token = None
+    if oauth_token:
+        token = oauth_token
+    elif bearer_creds:
+        token = bearer_creds.credentials
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get("sub")
