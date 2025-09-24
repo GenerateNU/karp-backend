@@ -32,18 +32,16 @@ app.add_middleware(
 
 app.include_router(health.router, prefix="", tags=["health"])
 
-app.include_router(user.router, prefix="/user", tags=["user"])
+app.include_router(user.router, prefix="/users", tags=["users"])
 
-app.include_router(item.router, prefix="/item", tags=["item"])
+app.include_router(item.router, prefix="/items", tags=["items"])
 
-app.include_router(vendor.router, prefix="/vendor", tags=["vendor"])
+app.include_router(vendor.router, prefix="/vendors", tags=["vendors"])
 
-app.include_router(organization.router, prefix="/organization", tags=["organization"])
+app.include_router(organization.router, prefix="/organizations", tags=["organizations"])
 
-app.include_router(event.router, prefix="/event", tags=["event"])
+app.include_router(event.router, prefix="/events", tags=["events"])
 
-app.include_router(volunteer.router, prefix="/volunteer", tags=["volunteer"])
+app.include_router(volunteer.router, prefix="/volunteers", tags=["volunteers"])
 
-app.include_router(
-    registration.router, prefix="/volunteer-registration", tags=["volunteer-registration"]
-)
+app.include_router(registration.router, prefix="/registrations", tags=["registrations"])
