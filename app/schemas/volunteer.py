@@ -15,7 +15,6 @@ class Volunteer(BaseModel):
     id: str
     first_name: str
     last_name: str
-    trainings: list[str]  ## come back to this
     age: int
     coins: int
     preferences: list[EventType]  # come back
@@ -29,7 +28,6 @@ class Volunteer(BaseModel):
 class CreateVolunteerRequest(BaseModel):
     first_name: str
     last_name: str
-    trainings: list[str]
     age: int
     coins: int
     preferences: list[EventType]
@@ -38,7 +36,6 @@ class CreateVolunteerRequest(BaseModel):
 class UpdateVolunteerRequest(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
-    trainings: list[str] | None = None
     age: int | None = None
     coins: int | None = None
     preferences: list[EventType] | None = None
