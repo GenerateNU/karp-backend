@@ -93,6 +93,6 @@ async def clear_event_by_id(
     return await event_model.delete_event_by_id(event_id)
 
 
-# @router.delete("/clear", response_model=None)
-# async def clear_events() -> None:
-#     return await event_model.delete_all_events()
+@router.delete("/clear", response_model=None)
+async def clear_events() -> None:
+    return await event_model.delete_all_events()
