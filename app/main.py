@@ -44,6 +44,4 @@ app.include_router(event.router, prefix="/event", tags=["event"])
 
 app.include_router(volunteer.router, prefix="/volunteer", tags=["volunteer"])
 
-app.include_router(
-    registration.router, prefix="/volunteer-registration", tags=["volunteer-registration"]
-)
+app.include_router(registration.router, prefix="/registration", tags=["registration"])
