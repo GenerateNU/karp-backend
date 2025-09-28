@@ -4,9 +4,9 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
 from app.models.event import event_model
-from app.schemas.registration import (
-    Registration,
-)
+from app.models.volunteer import volunteer_model
+from app.schemas.event import Event
+from app.schemas.registration import Registration, RegistrationStatus
 
 
 class RegistrationModel:
@@ -47,6 +47,55 @@ class RegistrationModel:
 
         volunteers_docs = await self.registrations.aggregate(pipeline).to_list(length=None)
         return [self._to_volunteer(volunteer) for volunteer in volunteers_docs]
+
+    async def get_completed_events_by_volunteer(self, volunteer_id: str) -> list[Event]:
+        volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)
+        if not volunteer:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
+        pipeline = [
+            {
+                "$match": {
+                    "volunteer_id": ObjectId(volunteer_id),
+                    "registration_status": RegistrationStatus.COMPLETED,
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "events",
+                    "localField": "event_id",
+                    "foreignField": "_id",
+                    "as": "event_docs",
+                }
+            },
+            {"$unwind": "$event_docs"},
+            {"$replaceRoot": {"newRoot": "$event_docs"}},
+        ]
+
+        event_docs = await self.registrations.aggregate(pipeline).to_list(length=None)
+        return [event_model.to_event(event) for event in event_docs]
+
+    async def get_upcoming_events_by_volunteer(self, volunteer_id: str) -> list[Event]:
+        pipeline = [
+            {
+                "$match": {
+                    "volunteer_id": ObjectId(volunteer_id),
+                    "registration_status": RegistrationStatus.UPCOMING,
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "events",
+                    "localField": "event_id",
+                    "foreignField": "_id",
+                    "as": "event_docs",
+                }
+            },
+            {"$unwind": "$event_docs"},
+            {"$replaceRoot": {"newRoot": "$event_docs"}},
+        ]
+
+        event_docs = await self.registrations.aggregate(pipeline).to_list(length=None)
+        return [event_model.to_event(event) for event in event_docs]
 
     def _to_volunteer(self, doc) -> Registration:
         registration_data = doc.copy()
