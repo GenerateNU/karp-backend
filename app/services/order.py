@@ -30,20 +30,3 @@ class OrderService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
         return order
-
-    async def authorize_volunteer_orders_access(
-        self, volunteer_id: str, current_user: User
-    ) -> None:
-        """
-        Authorize access to view orders for a specific volunteer:
-        - Volunteers can only view their own orders
-        - Admins can view any volunteer's orders
-        """
-        if current_user.user_type == UserType.VOLUNTEER:
-            if current_user.entity_id != volunteer_id:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You can only view your own orders",
-                )
-        elif current_user.user_type != UserType.ADMIN:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")

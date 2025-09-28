@@ -8,8 +8,10 @@ from app.models.order import order_model
 from app.models.volunteer import volunteer_model
 from app.schemas.order import CreateOrderRequest, Order, UpdateOrderRequest
 from app.schemas.user import User, UserType
+from app.services.order import OrderService
 
 router = APIRouter()
+order_service = OrderService(order_model)
 
 
 @router.post("/new", response_model=Order)
@@ -25,7 +27,7 @@ async def create_order(
     if current_user.entity_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must be associated with a volunteer profile to place orders",
+            detail="You must be associated with a volunteer profile to place an order",
         )
 
     await item_model.get_item(order.item_id)
@@ -46,25 +48,7 @@ async def get_order_by_id(
     order_id: str,
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> Order:
-    order = await order_model.get_order_by_id(order_id)
-
-    if current_user.user_type == UserType.VOLUNTEER:
-        if current_user.entity_id != order.volunteer_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can can only view your own orders",
-            )
-    elif current_user.user_type == UserType.VENDOR:
-        item = await item_model.get_item(order.item_id)
-        if current_user.entity_id != item.vendor_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only view orders for your own items",
-            )
-    elif current_user.user_type != UserType.ADMIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-
-    return order
+    return await order_service.authorize_order_access(order_id, current_user)
 
 
 @router.get("/item/{item_id}", response_model=list[Order])
@@ -72,8 +56,8 @@ async def get_orders_by_item_id(
     item_id: str,
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> list[Order]:
-    item = await item_model.get_item(item_id)
     if current_user.user_type == UserType.VENDOR:
+        item = await item_model.get_item(item_id)
         if current_user.entity_id != item.vendor_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -100,11 +84,11 @@ async def get_orders_by_volunteer_id(
     if current_user.user_type == UserType.VOLUNTEER:
         if current_user.entity_id != volunteer_id:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="You can only view your own orders"
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only view your own orders",
             )
     elif current_user.user_type != UserType.ADMIN:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-
     return await order_model.get_orders_by_volunteer_id(volunteer_id)
 
 
@@ -114,23 +98,7 @@ async def update_order_status(
     order_update: Annotated[UpdateOrderRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> Order:
-    """Update order status"""
-    order = await order_model.get_order_by_id(order_id)
-    if current_user.user_type == UserType.VOLUNTEER:
-        if current_user.entity_id != order.volunteer_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="You can only update your own orders"
-            )
-    elif current_user.user_type == UserType.VENDOR:
-        item = await item_model.get_item(order.item_id)
-        if current_user.entity_id != item.vendor_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only update orders for your own items",
-            )
-    elif current_user.user_type != UserType.ADMIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-
+    await order_service.authorize_order_access(order_id, current_user)
     return await order_model.update_order_status(order_id, order_update)
 
 
@@ -139,21 +107,5 @@ async def cancel_order(
     order_id: str,
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> Order:
-    order = await order_model.get_order_by_id(order_id)
-
-    if current_user.user_type == UserType.VOLUNTEER:
-        if current_user.entity_id != order.volunteer_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="You can only cancel your own orders"
-            )
-    elif current_user.user_type == UserType.VENDOR:
-        item = await item_model.get_item(order.item_id)
-        if current_user.entity_id != item.vendor_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only cancel orders for your own items",
-            )
-    elif current_user.user_type != UserType.ADMIN:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
-
+    await order_service.authorize_order_access(order_id, current_user)
     return await order_model.cancel_order(order_id)
