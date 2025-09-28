@@ -48,9 +48,11 @@ class OrderModel:
 
         return self._to_order(inserted_doc)
 
-    async def update_order_status(self, order_update: UpdateOrderRequest, order_id: str) -> Order:
+    async def update_order_status(self, order_id: str, order_update: UpdateOrderRequest) -> Order:
         update_data = order_update.model_dump(exclude_unset=True)
-        result = await self.collection.update_one({"_id": order_id}, {"$set": update_data})
+        result = await self.collection.update_one(
+            {"_id": ObjectId(order_id)}, {"$set": update_data}
+        )
 
         if result.matched_count == 0:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
@@ -58,10 +60,16 @@ class OrderModel:
         updated_doc = await self.collection.find_one({"_id": ObjectId(order_id)})
         return self._to_order(updated_doc)
 
-    async def cancel_order(self, order_id: str):
-        await self.collection.update_one(
-            {"_id": ObjectId(order_id)}, {"$set": {"order_status": False}}
+    async def cancel_order(self, order_id: str) -> Order:
+        result = await self.collection.update_one(
+            {"_id": ObjectId(order_id)}, {"$set": {"order_status": OrderStatus.CANCELLED}}
         )
+
+        if result.matched_count == 0:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+
+        updated_doc = await self.collection.find_one({"_id": ObjectId(order_id)})
+        return self._to_order(updated_doc)
 
     def _to_order(self, doc) -> Order:
         order_data = doc.copy()
@@ -69,3 +77,6 @@ class OrderModel:
         order_data["item_id"] = str(order_data["item_id"])
         order_data["volunteer_id"] = str(order_data["volunteer_id"])
         return Order(**order_data)
+
+
+order_model = OrderModel()
