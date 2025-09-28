@@ -43,3 +43,9 @@ async def update_achievement(
 
     await achievement_model.update_achievement(updated_achievement, achievement_id)
     return {"message": "Achievement updated successfully"}
+
+
+@router.delete("/{achievement_id}", response_model=None)
+async def delete_achievement(achievement_id: str) -> None:
+
+    return await achievement_model.delete_achievement(achievement_id)

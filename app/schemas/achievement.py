@@ -6,6 +6,7 @@ class Achievement(BaseModel):
     name: str
     description: str
     level: int
+    is_active: bool
     # [How to store fish TBD]
 
     class Config:
