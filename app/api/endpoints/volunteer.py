@@ -20,6 +20,11 @@ async def get_volunteers() -> list[Volunteer]:
     return await volunteer_model.get_all_volunteers()
 
 
+@router.get("/top-10", response_model=list[Volunteer])
+async def get_top_x_volunteers() -> list[Volunteer]:
+    return await volunteer_model.get_top_x_volunteers()
+
+
 @router.get("/{volunteer_id}", response_model=Volunteer)
 async def get_volunteer_by_id(volunteer_id: str) -> Volunteer:
     volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)

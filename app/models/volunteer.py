@@ -41,6 +41,20 @@ class VolunteerModel:
         volunteers_list = await self.collection.find().to_list(length=None)
         return [self._to_volunteer(volunteer) for volunteer in volunteers_list]
 
+    async def get_top_x_volunteers(self) -> list[Volunteer]:
+        volunteers_list = (
+            await self.collection.find()
+            .sort(
+                {
+                    "expperience": -1,
+                    "first_name": 1,
+                }
+            )
+            .limit(10)
+            .to_list()
+        )
+        return [self._to_volunteer(volunteer) for volunteer in volunteers_list]
+
     async def create_volunteer(self, volunteer: CreateVolunteerRequest, user_id: str) -> Volunteer:
         volunteer_data = volunteer.model_dump()
         prefs = volunteer_data.get("preferences", [])
