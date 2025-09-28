@@ -16,6 +16,7 @@ class CreateAchievementRequest(BaseModel):
     name: str
     description: str
     level: int
+    is_active: bool = True
 
 
 class UpdateAchievementRequest(BaseModel):
