@@ -83,11 +83,13 @@ class EventModel:
 
     async def update_event_status_completed(self, event: Event) -> None:
         duration = event["end_date_time"] - event["start_date_time"]
-        exp = duration.total_seconds() / 36 # 3600 seconds in an hour * 100 exp per hour
+        exp = duration.total_seconds() / 36  # 3600 seconds in an hour * 100 exp per hour
         volunteers = await volunteer_model.get_volunteers_by_event(event["id"])
         for volunteer in volunteers:
             await volunteer_model.update_volunteer(volunteer["id"], {"exp": volunteer["exp"] + exp})
-            await volunteer_model.update_volunteer(volunteer["id"], {"coins": volunteer["coins"] + event["coins"]})
+            await volunteer_model.update_volunteer(
+                volunteer["id"], {"coins": volunteer["coins"] + event["coins"]}
+            )
             volunteer_model.check_level_up(volunteer)
 
     async def delete_event_by_id(self, event_id: str) -> None:
