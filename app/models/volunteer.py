@@ -41,16 +41,16 @@ class VolunteerModel:
         volunteers_list = await self.collection.find().to_list(length=None)
         return [self._to_volunteer(volunteer) for volunteer in volunteers_list]
 
-    async def get_top_x_volunteers(self) -> list[Volunteer]:
+    async def get_top_x_volunteers(self, x: int) -> list[Volunteer]:
         volunteers_list = (
             await self.collection.find()
             .sort(
                 {
-                    "expperience": -1,
+                    "experience": -1,
                     "first_name": 1,
                 }
             )
-            .limit(10)
+            .limit(x)
             .to_list()
         )
         return [self._to_volunteer(volunteer) for volunteer in volunteers_list]
