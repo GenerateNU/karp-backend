@@ -3,23 +3,23 @@ from typing import Annotated
 from fastapi import APIRouter, Body, HTTPException, status
 
 # from app.api.endpoints.user import get_current_user
-from app.models.achievement import achievement_model
 from app.models.volunteer import volunteer_model
-from app.models.volunteerAchievement import volunteer_achievement_model
-from app.schemas.volunteerAchievement import CreateVolunteerAchievementRequest, VolunteerAchievement
+from app.models.volunteer_achievement import volunteer_achievement_model
+from app.schemas.volunteer_achievement import (
+    CreateVolunteerAchievementRequest,
+    VolunteerAchievement,
+)
 
 router = APIRouter()
 
 
 @router.post("/new", response_model=VolunteerAchievement)
 async def create_volunteer_achievement(
-    volunteerAchievement: Annotated[CreateVolunteerAchievementRequest, Body(...)],
+    volunteer_achievement: Annotated[CreateVolunteerAchievementRequest, Body(...)],
 ) -> VolunteerAchievement:
 
-    await achievement_model.get_achievement(volunteerAchievement.achievement_id)
-
     return await volunteer_achievement_model.create_volunteer_achievement(
-        volunteerAchievement,
+        volunteer_achievement,
     )
 
 
@@ -59,7 +59,7 @@ async def get_volunteer_achievements_by_volunteer(volunteer_id: str) -> list[Vol
 
 @router.delete("/{volunteer_achievement_id}", response_model=VolunteerAchievement)
 async def delete_volunteer_achievement(
-    volunteerAchievement_id: str,
+    volunteer_achievement_id: str,
 ) -> VolunteerAchievement:
 
-    return await volunteer_achievement_model.delete_volunteer_achievement(volunteerAchievement_id)
+    return await volunteer_achievement_model.delete_volunteer_achievement(volunteer_achievement_id)

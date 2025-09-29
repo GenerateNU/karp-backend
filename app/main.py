@@ -11,7 +11,7 @@ from app.api.endpoints import (
     user,
     vendor,
     volunteer,
-    volunteerAchievement,
+    volunteer_achievement,
 )
 
 app = FastAPI()
@@ -53,6 +53,7 @@ app.include_router(
 app.include_router(achievement.router, prefix="/achievement", tags=["achievement"])
 
 app.include_router(
-    volunteerAchievement.router, prefix="/volunteer-achievement", tags=["volunteer-achievement"]
+    volunteer_achievement.router, prefix="/volunteer-achievement", tags=["volunteer-achievement"]
 )
+
 app.include_router(registration.router, prefix="/registration", tags=["registration"])

@@ -17,7 +17,3 @@ class VolunteerAchievement(BaseModel):
 class CreateVolunteerAchievementRequest(BaseModel):
     achievement_id: str
     volunteer_id: str
-
-
-# class UpdateVolunteerAchievementRequest(BaseModel):
-#     volunteerAchievement_status: OrderStatus

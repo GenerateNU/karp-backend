@@ -5,7 +5,10 @@ from bson import ObjectId
 from fastapi import HTTPException
 
 from app.database.mongodb import db
-from app.schemas.volunteerAchievement import CreateVolunteerAchievementRequest, VolunteerAchievement
+from app.schemas.volunteer_achievement import (
+    CreateVolunteerAchievementRequest,
+    VolunteerAchievement,
+)
 from app.utils.object_id import parse_object_id
 
 if TYPE_CHECKING:
@@ -17,11 +20,11 @@ class VolunteerAchievementModel:
         self.collection: AsyncIOMotorCollection = db["volunteerAchievements"]
 
     async def create_volunteer_achievement(
-        self, volunteerAchievement: CreateVolunteerAchievementRequest
+        self, volunteer_achievement: CreateVolunteerAchievementRequest
     ) -> VolunteerAchievement:
         volunteer_achievement_data = {
-            "achievement_id": ObjectId(volunteerAchievement.achievement_id),
-            "volunteer_id": ObjectId(volunteerAchievement.volunteer_id),
+            "achievement_id": ObjectId(volunteer_achievement.achievement_id),
+            "volunteer_id": ObjectId(volunteer_achievement.volunteer_id),
             "received_at": datetime.now(),
         }
 
@@ -75,8 +78,8 @@ class VolunteerAchievementModel:
             {"volunteer_id": ObjectId(volunteer_id)}
         ).to_list(length=None)
         return [
-            self._to_volunteer_achievement(volunteerAchievement)
-            for volunteerAchievement in volunteer_achievements_list
+            self._to_volunteer_achievement(volunteer_achievement)
+            for volunteer_achievement in volunteer_achievements_list
         ]
 
     async def delete_volunteer_achievement(self, volunteer_achievement_id: str) -> None:
