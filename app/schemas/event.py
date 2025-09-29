@@ -1,22 +1,15 @@
 from datetime import UTC, datetime
-from enum import Enum
 
 from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
-
-class Status(str, Enum):
-    PUBLISHED = "PUBLISHED"
-    COMPLETED = "COMPLETED"
-    CANCELLED = "CANCELLED"
-    DRAFT = "DRAFT"
-    DELETED = "DELETED"
+from app.schemas.data_types import Status, Location
 
 
 class Event(BaseModel):
     id: str | None = Field(default=None, alias="_id")
     name: str
-    location: str
+    address: str
+    location: Location
     start_date_time: datetime
     end_date_time: datetime
     organization_id: str

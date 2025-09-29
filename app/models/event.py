@@ -2,10 +2,14 @@ from datetime import UTC, datetime
 
 from bson import ObjectId
 from fastapi import HTTPException
-from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
+from motor.motor_asyncio import AsyncIOMotorCollection
 
 from app.database.mongodb import db
 from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStatusRequest
+from app.schemas.data_types import Location
+from app.services.event import EventService
+
+event_service = EventService(model=None)
 
 
 class EventModel:
@@ -18,6 +22,7 @@ class EventModel:
         event_data["status"] = Status.DRAFT
         event_data["created_at"] = datetime.now(UTC)
         event_data["organization_id"] = ObjectId(org_id)
+        event_data["location"] = event_service.location_to_coordinates(event_data["address"])
 
         result = await self.collection.insert_one(event_data)
         event_data["_id"] = result.inserted_id
@@ -26,6 +31,12 @@ class EventModel:
 
     async def get_all_events(self) -> list[Event]:
         events_list = await self.collection.find().to_list(length=None)
+        return [self.to_event(event) for event in events_list]
+
+    async def get_events_by_location(self, distance: float, location: Location) -> list[Event]:
+        events_list = await self.collection.find(
+            {"location": {"$near": {"$geometry": location.model_dump(), "$maxDistance": distance}}}
+        ).to_list(length=None)
         return [self.to_event(event) for event in events_list]
 
     async def get_event_by_id(self, event_id: str) -> Event | None:
