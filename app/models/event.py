@@ -9,6 +9,8 @@ from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStat
 from app.schemas.data_types import Location
 from app.services.event import EventService
 
+from app.models.user import user_model
+
 event_service = EventService(model=None)
 
 
@@ -16,13 +18,21 @@ class EventModel:
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["events"]
 
-    async def create_event(self, event: CreateEventRequest, org_id: str) -> Event:
+    async def create_event(self, event: CreateEventRequest, user_id: str) -> Event:
         event_data = event.model_dump(mode="json", by_alias=True, exclude={"_id", "id"})
 
         event_data["status"] = Status.DRAFT
+        # Get the organization entity_id associated with this user
+        user = await user_model.get_by_id(user_id)
+        if not user or not user.entity_id:
+            raise HTTPException(
+                status_code=400, detail="User is not associated with an organization"
+            )
+        event_data["organization_id"] = user.entity_id
         event_data["created_at"] = datetime.now(UTC)
-        event_data["organization_id"] = ObjectId(org_id)
-        event_data["location"] = event_service.location_to_coordinates(event_data["address"])
+        event_data["created_by"] = user_id
+        # event_data["location"] = await event_service.location_to_coordinates(event_data["address"])
+        # will uncomment when we get the google maps key
 
         result = await self.collection.insert_one(event_data)
         event_data["_id"] = result.inserted_id
