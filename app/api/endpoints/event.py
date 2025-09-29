@@ -52,7 +52,7 @@ async def create_event(
             detail="Only users with organization role can create an event",
         )
 
-    if current_user.entity_id is None:
+    if current_user.entity_id is None and current_user.user_type != UserType.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must be associated with an organization to create an event",
@@ -74,7 +74,7 @@ async def update_event_status(
             detail="Only users with organization role can create an event",
         )
 
-    if current_user.entity_id is None:
+    if current_user.entity_id is None and current_user.user_type != UserType.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must be associated with an organization to create an event",
@@ -95,7 +95,7 @@ async def clear_event_by_id(
             detail="Only users with organization role can delete an event",
         )
 
-    if current_user.entity_id is None:
+    if current_user.entity_id is None and current_user.user_type != UserType.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must be associated with an organization to delete an event",
@@ -106,5 +106,12 @@ async def clear_event_by_id(
 
 
 @router.delete("/clear", response_model=None)
-async def clear_events() -> None:
+async def clear_events(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    if current_user.user_type != UserType.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can delete all events",
+        )
     return await event_model.delete_all_events()
