@@ -80,7 +80,7 @@ async def update_event_status(
             detail="You must be associated with an organization to create an event",
         )
 
-    await event_service.authorize_org(event_id, current_user.id)
+    await event_service.authorize_org(event_id, current_user.entity_id)
     updated_event = await event_model.update_event_status(event_id, event)
     return updated_event
 
