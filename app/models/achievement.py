@@ -15,12 +15,12 @@ class AchievementModel:
 
         achievement_data["_id"] = result.inserted_id
 
-        return self.to_achievement(achievement_data)
+        return self._to_achievement(achievement_data)
 
     async def get_all_achievements(self) -> list[Achievement]:
         achievements_list = await self.collection.find().to_list(length=None)
 
-        return [self.to_achievement(achievement) for achievement in achievements_list]
+        return [self._to_achievement(achievement) for achievement in achievements_list]
 
     async def get_achievement(self, achievement_id: str) -> Achievement | None:
         achievement_obj_id = parse_object_id(achievement_id)
@@ -30,7 +30,7 @@ class AchievementModel:
         if achievement is None:
             raise HTTPException(status_code=404, detail="Achievement does not exist")
 
-        return self.to_achievement(achievement)
+        return self._to_achievement(achievement)
 
     async def deactivate_achievement(self, achievement_id: str):
         achievement_obj_id = parse_object_id(achievement_id)
@@ -70,7 +70,7 @@ class AchievementModel:
             raise HTTPException(status_code=404, detail="Achievement not found")
 
     # converting id and vendor_id to str to display all achievement fields
-    def to_achievement(self, doc) -> Achievement:
+    def _to_achievement(self, doc) -> Achievement:
         achievement_data = doc.copy()
         achievement_data["id"] = str(achievement_data["_id"])
         return Achievement(**achievement_data)
