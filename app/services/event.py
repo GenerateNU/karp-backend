@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from app.schemas.event import Event
 from app.schemas.data_types import Location
+from app.models.event import event_model
 from app.core.config import settings
 
 import requests
@@ -9,7 +10,7 @@ GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
 
 class EventService:
-    def __init__(self, model=None):
+    def __init__(self, model=event_model):
         self.model = model
 
     # ensure that only the org who created the event can modify it
@@ -42,7 +43,6 @@ class EventService:
         result = data["results"][0]
         location = result["geometry"]["location"]
         return {
-            "address": result["formatted_address"],
-            "latitude": location["lat"],
-            "longitude": location["lng"],
+            "type": "Point",
+            "coordinates": [location["lng"], location["lat"]],
         }
