@@ -63,7 +63,6 @@ for _ in range(5):
     volunteer_docs.append(
         {
             "_id": ObjectId(),
-            "trainings": [random.choice(["CPR", "Safety", "FirstAid"])],
             "age": random.randint(18, 60),
             "coins": random.randint(0, 100),
             "preferences": [

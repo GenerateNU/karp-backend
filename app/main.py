@@ -55,3 +55,4 @@ app.include_router(achievement.router, prefix="/achievement", tags=["achievement
 app.include_router(
     volunteerAchievement.router, prefix="/volunteer-achievement", tags=["volunteer-achievement"]
 )
+app.include_router(registration.router, prefix="/registration", tags=["registration"])
