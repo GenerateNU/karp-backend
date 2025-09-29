@@ -33,7 +33,8 @@ async def get_all_volunteer_achievements() -> list[VolunteerAchievement]:
 async def get_volunteer_achievement_by_id(
     volunteer_achievement_id: str,
 ) -> VolunteerAchievement:
-    return await volunteer_achievement_model.get_volunteer_achievements_by_achievement(
+
+    return await volunteer_achievement_model.get_volunteer_achievement_by_id(
         volunteer_achievement_id
     )
 
