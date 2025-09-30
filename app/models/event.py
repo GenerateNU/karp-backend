@@ -75,7 +75,7 @@ class EventModel:
             await self.collection.update_one({"_id": ObjectId(event_id)}, {"$set": updated_data})
             event_data.update(updated_data)
 
-            if event_data["Status"] == Status.COMPLETED:
+            if event_data["status"] == Status.COMPLETED:
                 await self.update_event_status_completed(event_data)
 
             return self.to_event(event_data)
