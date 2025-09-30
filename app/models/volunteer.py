@@ -43,6 +43,20 @@ class VolunteerModel:
         volunteers_list = await self.collection.find().to_list(length=None)
         return [self._to_volunteer(volunteer) for volunteer in volunteers_list]
 
+    async def get_top_x_volunteers(self, x: int) -> list[Volunteer]:
+        volunteers_list = (
+            await self.collection.find()
+            .sort(
+                {
+                    "experience": -1,
+                    "first_name": 1,
+                }
+            )
+            .limit(x)
+            .to_list()
+        )
+        return [self._to_volunteer(volunteer) for volunteer in volunteers_list]
+
     async def get_top_organizations(self, volunteer_id: str, limit: int) -> list[Organization]:
         pipeline = [
             {"$match": {"_id": volunteer_id}},
