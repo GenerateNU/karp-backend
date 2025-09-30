@@ -11,6 +11,7 @@ from app.schemas.organization import (
     UpdateOrganizationRequest,
 )
 from app.schemas.user import User, UserType
+from app.utils.user import verify_entity_association, verify_user_role
 
 router = APIRouter()
 
@@ -89,3 +90,14 @@ async def delete_organization(
         )
 
     return await org_model.delete_organization(org_id)
+
+
+@router.get("/organization/top", response_model=list[Organization])
+async def get_top_organizations(
+    current_user: Annotated[User, Depends(get_current_user)],
+    limit: int = 1,
+) -> list[Organization]:
+    verify_user_role(current_user, UserType.VOLUNTEER)
+    verify_entity_association(current_user)
+
+    return await org_model.get_top_organizations(current_user.entity_id, limit)
