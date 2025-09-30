@@ -55,59 +55,6 @@ class OrganizationModel:
             {"_id": ObjectId(id)}, {"$set": {"status": Status.DELETED}}
         )
 
-    async def get_top_organizations(self, volunteer_id: str, limit: int) -> list[Organization]:
-        pipeline = [
-            {"$match": {"_id": volunteer_id}},
-            # Get all completed registrations for volunteer
-            {
-                "$lookup": {
-                    "from": "registrations",
-                    "localField": "_id",
-                    "foreignField": "volunteer_id",
-                    "as": "registrations",
-                }
-            },
-            {"$unwind": "$registrations"},
-            {"$match": {"registrations.registration_status": "COMPLETED"}},
-            # Get events from those registrations
-            {
-                "$lookup": {
-                    "from": "event",
-                    "localField": "event_id",
-                    "foreignField": "_id",
-                    "as": "event",
-                }
-            },
-            {"$unwind": "$event"},
-            # Calculate duration for each event and group by organization
-            {
-                "$addFields": {
-                    "duration_ms": {"$subtract": ["$event.end_date_time", "$event.start_date_time"]}
-                }
-            },
-            {
-                "$group": {
-                    "_id": "$event.organization_id",
-                    "total_duration_ms": {"$sum": "$duration_ms"},
-                }
-            },
-            {"$sort": {"total_duration_ms": -1}},
-            {"$limit": limit},
-            {
-                "$lookup": {
-                    "from": "organizations",
-                    "localField": "_id",
-                    "foreignField": "_id",
-                    "as": "organization",
-                }
-            },
-            {"$unwind": "$organization"},
-            {"$replaceRoot": {"newRoot": "$organization"}},
-        ]
-        results = await self.collection.aggregate(pipeline).to_list()
-
-        return [org_model._to_organization(doc) for doc in results]
-
     def _to_organization(self, doc) -> Organization:
         org_data = doc.copy()
         org_data["id"] = str(org_data["_id"])
