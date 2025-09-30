@@ -6,7 +6,7 @@ from app.schemas.achievement import Achievement
 class VolunteerAchievementsService:
     def __init__(self, model=volunteer_achievement_model):
         self.model = model
-        self.achievements_model = achievement_model
+        self.achievement_model = achievement_model
 
     async def add_achievement_to_volunteer(self, volunteer_id: str, achievement_id: str):
         volunteer_achievement_request = CreateVolunteerAchievementRequest(

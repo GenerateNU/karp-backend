@@ -1,26 +1,21 @@
 from fastapi import HTTPException, status
 from app.schemas.event import Event
 from app.schemas.data_types import Location
-from app.models.event import event_model
 from app.core.config import settings
-
-import requests
+from app.models.event import event_model
+from httpx import AsyncClient
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
 
 class EventService:
-    def __init__(self, model=event_model):
-        self.model = model
+    def __init__(self):
+        self.event_model = event_model
+        pass
 
     # ensure that only the org who created the event can modify it
     async def authorize_org(self, event_id: str, org_id: str) -> Event | None:
-        if self.model is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="EventService model dependency not provided",
-            )
-        event = await self.model.get_event_by_id(event_id)
+        event = await event_model.get_event_by_id(event_id)
         if not event:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -32,17 +27,17 @@ class EventService:
                 detail="You do not have permission to modify this event",
             )
 
-    async def location_to_coordinates(self, address: str) -> list[float]:
+    async def location_to_coordinates(self, address: str) -> Location:
         params = {"address": address, "key": settings.GOOGLE_MAPS_KEY}
-        response = requests.get(GEOCODE_URL, params=params)
-        data = response.json()
-
+        async with AsyncClient(timeout=10) as client:
+            r = await client.get(GEOCODE_URL, params=params)
+        if r.status_code != 200:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY, detail="Geocoding upstream error"
+            )
+        data = r.json()
         if data.get("status") != "OK" or not data.get("results"):
             raise HTTPException(status_code=400, detail=f"Geocoding failed: {data.get('status')}")
-
-        result = data["results"][0]
-        location = result["geometry"]["location"]
-        return {
-            "type": "Point",
-            "coordinates": [location["lng"], location["lat"]],
-        }
+        loc = data["results"][0]["geometry"]["location"]
+        # Return your schema type
+        return Location(type="Point", coordinates=[loc["lng"], loc["lat"]])
