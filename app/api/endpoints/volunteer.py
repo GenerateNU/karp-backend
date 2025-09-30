@@ -5,12 +5,14 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from app.api.endpoints.user import get_current_user
 from app.models.user import user_model
 from app.models.volunteer import volunteer_model
+from app.schemas.organization import Organization
 from app.schemas.user import User, UserType
 from app.schemas.volunteer import (
     CreateVolunteerRequest,
     UpdateVolunteerRequest,
     Volunteer,
 )
+from app.utils.user import verify_entity_association, verify_user_role
 
 router = APIRouter()
 
@@ -33,6 +35,17 @@ async def get_volunteer_by_id(volunteer_id: str) -> Volunteer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
 
     return volunteer
+
+
+@router.get("/me/organization/top", response_model=list[Organization])
+async def get_top_organizations(
+    current_user: Annotated[User, Depends(get_current_user)],
+    limit: int = 1,
+) -> list[Organization]:
+    verify_user_role(current_user, UserType.VOLUNTEER)
+    verify_entity_association(current_user)
+
+    return await volunteer_model.get_top_organizations(current_user.entity_id, limit)
 
 
 @router.post("/new", response_model=Volunteer)

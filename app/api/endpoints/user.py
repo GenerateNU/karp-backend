@@ -6,10 +6,10 @@ from typing import Annotated
 from bson import ObjectId
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.security import (
+    HTTPAuthorizationCredentials,
+    HTTPBearer,
     OAuth2PasswordBearer,
     OAuth2PasswordRequestForm,
-    HTTPBearer,
-    HTTPAuthorizationCredentials,
 )
 from jose import JWTError, jwt
 
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # OAuth2 scheme
 oauth2_scheme = OAuth2PasswordBearer(
-    tokenUrl="/users/oauth2-scheme-token",
+    tokenUrl="/user/oauth2-scheme-token",
     auto_error=False,
 )
 
@@ -72,8 +72,8 @@ def validate_email(email: str) -> tuple[bool, str]:
 
 # Get current user
 async def get_current_user(
-    oauth_token: str | None = Depends(oauth2_scheme),
-    bearer_creds: HTTPAuthorizationCredentials | None = Depends(bearer),
+    oauth_token: Annotated[str | None, Depends(oauth2_scheme)],
+    bearer_creds: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
 ):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
