@@ -90,7 +90,7 @@ class EventModel:
             await volunteer_model.update_volunteer(
                 volunteer["id"], {"coins": volunteer["coins"] + event["coins"]}
             )
-            volunteer_model.check_level_up(volunteer)
+            await volunteer_model.check_level_up(volunteer)
 
     async def delete_event_by_id(self, event_id: str) -> None:
         event = await self.collection.find_one({"_id": ObjectId(event_id)})
