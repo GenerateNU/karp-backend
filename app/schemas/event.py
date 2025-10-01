@@ -1,22 +1,15 @@
 from datetime import UTC, datetime
-from enum import Enum
 
 from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-
-
-class Status(str, Enum):
-    PUBLISHED = "PUBLISHED"
-    COMPLETED = "COMPLETED"
-    CANCELLED = "CANCELLED"
-    DRAFT = "DRAFT"
-    DELETED = "DELETED"
+from app.schemas.data_types import Status, Location
 
 
 class Event(BaseModel):
     id: str | None = Field(default=None, alias="_id")
     name: str
-    location: str
+    address: str
+    location: Location | None = None
     start_date_time: datetime
     end_date_time: datetime
     organization_id: str
@@ -24,6 +17,7 @@ class Event(BaseModel):
     max_volunteers: int
     coins: int
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    created_by: str
 
     model_config = ConfigDict(
         use_enum_values=True,
@@ -41,7 +35,7 @@ class Event(BaseModel):
 
 class CreateEventRequest(BaseModel):
     name: str
-    location: str
+    address: str
     start_date_time: datetime
     end_date_time: datetime
     max_volunteers: int

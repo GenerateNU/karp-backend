@@ -69,6 +69,10 @@ class AchievementModel:
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Achievement not found")
 
+    async def get_achievements_by_level(self, level: int) -> Achievement:
+        achievements_list = await self.collection.find({"level": level}).to_list(length=None)
+        return [self._to_achievement(achievement) for achievement in achievements_list]
+
     # converting id and vendor_id to str to display all achievement fields
     def _to_achievement(self, doc) -> Achievement:
         achievement_data = doc.copy()
