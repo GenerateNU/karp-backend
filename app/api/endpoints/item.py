@@ -23,7 +23,7 @@ async def post_item(
             detail="Only users with vendor role can create a item",
         )
 
-    return await item_model.create_item(item, current_user.id)
+    return await item_model.create_item(item, current_user.entity_id)
 
 
 @router.get("/all", response_model=list[Item])
@@ -38,7 +38,6 @@ async def get_item(item_id: str) -> Item:
 
 @router.put("/deactivate/{item_id}")
 async def deactivate_item(item_id: str, current_user: Annotated[User, Depends(get_current_user)]):
-
     if current_user.entity_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

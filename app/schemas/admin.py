@@ -23,8 +23,25 @@ class VendorApplicationID(BaseModel):
 
 
 class Admin(BaseModel):
+    id: str
     first_name: str
     last_name: str
+    email: str
+    username: str
+    org_applications: list[OrgApplicationID] = Field(default_factory=list)
+    vendor_applications: list[VendorApplicationID] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
+class AdminResponse(BaseModel):
+    id: str
+    first_name: str
+    last_name: str
+    email: str
+    username: str
+    user_type: str
     org_applications: list[OrgApplicationID] = Field(default_factory=list)
     vendor_applications: list[VendorApplicationID] = Field(default_factory=list)
 
@@ -33,10 +50,11 @@ class Admin(BaseModel):
 
 
 class CreateAdminRequest(BaseModel):
+    username: str
+    email: str
+    password: str
     first_name: str
     last_name: str
-    org_applications: list[OrgApplicationID] = Field(default_factory=list)
-    vendor_applications: list[VendorApplicationID] = Field(default_factory=list)
 
 
 class ApproveOrganizationRequest(BaseModel):

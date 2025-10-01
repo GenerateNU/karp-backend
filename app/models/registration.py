@@ -4,9 +4,8 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
 from app.models.event import event_model
-from app.schemas.registration import (
-    Registration,
-)
+from app.schemas.event import Event
+from app.schemas.registration import Registration, RegistrationStatus
 
 
 class RegistrationModel:
@@ -47,6 +46,29 @@ class RegistrationModel:
 
         volunteers_docs = await self.registrations.aggregate(pipeline).to_list(length=None)
         return [self._to_volunteer(volunteer) for volunteer in volunteers_docs]
+
+    async def get_events_by_volunteer(
+        self, volunteer_id: str, status: RegistrationStatus | None
+    ) -> list[Event]:
+        match_stage: dict = {"volunteer_id": ObjectId(volunteer_id)}
+        if status is not None:
+            match_stage["registration_status"] = status
+
+        pipeline = [
+            {"$match": match_stage},
+            {
+                "$lookup": {
+                    "from": "events",
+                    "localField": "event_id",
+                    "foreignField": "_id",
+                    "as": "event_docs",
+                }
+            },
+            {"$unwind": "$event_docs"},
+            {"$replaceRoot": {"newRoot": "$event_docs"}},
+        ]
+        event_docs = await self.registrations.aggregate(pipeline).to_list(length=None)
+        return [event_model.to_event(event) for event in event_docs]
 
     def _to_volunteer(self, doc) -> Registration:
         registration_data = doc.copy()
