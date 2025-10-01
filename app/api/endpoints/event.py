@@ -10,7 +10,7 @@ from app.schemas.user import User, UserType
 from app.services.event import EventService
 
 router = APIRouter()
-event_service = EventService(event_model)
+event_service = EventService()
 
 
 @router.get("/all", response_model=list[Event])

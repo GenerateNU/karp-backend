@@ -2,7 +2,6 @@ from fastapi import HTTPException, status
 from app.schemas.event import Event
 from app.schemas.data_types import Location
 from app.core.config import settings
-from app.models.event import event_model
 from httpx import AsyncClient
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
@@ -10,11 +9,12 @@ GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
 class EventService:
     def __init__(self):
-        self.event_model = event_model
         pass
 
     # ensure that only the org who created the event can modify it
     async def authorize_org(self, event_id: str, org_id: str) -> Event | None:
+        from app.models.event import event_model
+
         event = await event_model.get_event_by_id(event_id)
         if not event:
             raise HTTPException(
