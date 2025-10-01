@@ -4,7 +4,9 @@ from bson import ObjectId
 from fastapi import HTTPException, status
 
 from app.database.mongodb import db
+from app.models.organization import org_model
 from app.models.user import user_model
+from app.schemas.organization import Organization
 from app.schemas.volunteer import (
     CreateVolunteerRequest,
     EventType,
@@ -40,6 +42,73 @@ class VolunteerModel:
     async def get_all_volunteers(self) -> list[Volunteer]:
         volunteers_list = await self.collection.find().to_list(length=None)
         return [self._to_volunteer(volunteer) for volunteer in volunteers_list]
+
+    async def get_top_x_volunteers(self, x: int) -> list[Volunteer]:
+        volunteers_list = (
+            await self.collection.find()
+            .sort(
+                {
+                    "experience": -1,
+                    "first_name": 1,
+                }
+            )
+            .limit(x)
+            .to_list()
+        )
+        return [self._to_volunteer(volunteer) for volunteer in volunteers_list]
+
+    async def get_top_organizations(self, volunteer_id: str, limit: int) -> list[Organization]:
+        pipeline = [
+            {"$match": {"_id": volunteer_id}},
+            # Get all completed registrations for volunteer
+            {
+                "$lookup": {
+                    "from": "registrations",
+                    "localField": "_id",
+                    "foreignField": "volunteer_id",
+                    "as": "registrations",
+                }
+            },
+            {"$unwind": "$registrations"},
+            {"$match": {"registrations.registration_status": "COMPLETED"}},
+            # Get events from those registrations
+            {
+                "$lookup": {
+                    "from": "event",
+                    "localField": "event_id",
+                    "foreignField": "_id",
+                    "as": "event",
+                }
+            },
+            {"$unwind": "$event"},
+            # Calculate duration for each event and group by organization
+            {
+                "$addFields": {
+                    "duration_ms": {"$subtract": ["$event.end_date_time", "$event.start_date_time"]}
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$event.organization_id",
+                    "total_duration_ms": {"$sum": "$duration_ms"},
+                }
+            },
+            {"$sort": {"total_duration_ms": -1}},
+            {"$limit": limit},
+            {
+                "$lookup": {
+                    "from": "organizations",
+                    "localField": "_id",
+                    "foreignField": "_id",
+                    "as": "organization",
+                }
+            },
+            {"$unwind": "$organization"},
+            {"$replaceRoot": {"newRoot": "$organization"}},
+        ]
+        results = await self.collection.aggregate(pipeline).to_list()
+
+        return [org_model._to_organization(doc) for doc in results]
 
     async def create_volunteer(self, volunteer: CreateVolunteerRequest, user_id: str) -> Volunteer:
         volunteer_data = volunteer.model_dump()

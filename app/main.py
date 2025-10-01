@@ -6,6 +6,7 @@ from app.api.endpoints import (
     event,
     health,
     item,
+    order,
     organization,
     registration,
     user,
@@ -57,3 +58,5 @@ app.include_router(
 )
 
 app.include_router(registration.router, prefix="/registration", tags=["registration"])
+
+app.include_router(order.router, prefix="/order", tags=["order"])
