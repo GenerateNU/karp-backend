@@ -28,3 +28,4 @@ class CreateOrganizationRequest(BaseModel):
 class UpdateOrganizationRequest(BaseModel):
     name: str | None = None
     description: str | None = None
+    status: Status | None = None
