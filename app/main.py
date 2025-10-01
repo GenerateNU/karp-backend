@@ -5,6 +5,7 @@ from app.api.endpoints import (
     event,
     health,
     item,
+    order,
     organization,
     registration,
     user,
@@ -45,3 +46,5 @@ app.include_router(event.router, prefix="/event", tags=["event"])
 app.include_router(volunteer.router, prefix="/volunteer", tags=["volunteer"])
 
 app.include_router(registration.router, prefix="/registration", tags=["registration"])
+
+app.include_router(order.router, prefix="/order", tags=["order"])
