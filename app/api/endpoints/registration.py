@@ -1,12 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.api.endpoints.user import get_current_user
 from app.models.registration import registration_model
 from app.models.volunteer import volunteer_model
 from app.schemas.event import Event
-from app.schemas.registration import Registration, RegistrationStatus
+from app.schemas.registration import CreateRegistrationRequest, Registration, RegistrationStatus
 from app.schemas.user import User, UserType
 
 router = APIRouter()
@@ -38,3 +38,22 @@ async def get_events_by_volunteer(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     return await registration_model.get_events_by_volunteer(volunteer_id, status)
+
+
+@router.post("/new", response_model=Registration)
+async def create_registrion(
+    registration: Annotated[CreateRegistrationRequest, Body(...)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Registration:
+    if current_user.user_type != UserType.VOLUNTEER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only volunteers can register for events"
+        )
+
+    if current_user.entity_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You must be associated with a volunteer profile to register for an event",
+        )
+
+    return await registration_model.create_registration(registration, current_user.entity_id)

@@ -8,6 +8,7 @@ class RegistrationStatus(str, Enum):
     UPCOMING = "upcoming"
     COMPLETED = "completed"
     INCOMPLETED = "incompleted"
+    UNREGISTERED = "unregistered"
 
 
 class Registration(BaseModel):
@@ -21,3 +22,7 @@ class Registration(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class CreateRegistrationRequest(BaseModel):
+    event_id: str

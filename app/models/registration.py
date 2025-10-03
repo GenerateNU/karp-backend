@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from bson import ObjectId
 from fastapi import HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
@@ -5,7 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 from app.database.mongodb import db
 from app.models.event import event_model
 from app.schemas.event import Event
-from app.schemas.registration import Registration, RegistrationStatus
+from app.schemas.registration import CreateRegistrationRequest, Registration, RegistrationStatus
 
 
 class RegistrationModel:
@@ -70,10 +72,28 @@ class RegistrationModel:
         event_docs = await self.registrations.aggregate(pipeline).to_list(length=None)
         return [event_model.to_event(event) for event in event_docs]
 
-    def _to_volunteer(self, doc) -> Registration:
+    async def create_registration(
+        self, registration: CreateRegistrationRequest, volunteer_id: str
+    ) -> Registration:
+        registration_data = {
+            "event_id": ObjectId(registration.event_id),
+            "volunteer_id": ObjectId(volunteer_id),
+            "registered_at": datetime.now(),
+            "registration_status": RegistrationStatus.UPCOMING,
+            "clocked_in": False,
+            "clocked_out": False,
+        }
+
+        result = await self.registrations.insert_one(registration_data)
+        inserted_doc = await self.registrations.find_one({"_id": result.inserted_id})
+
+        return self._to_registration(inserted_doc)
+
+    def _to_registration(self, doc) -> Registration:
         registration_data = doc.copy()
         registration_data["id"] = str(registration_data["_id"])
         registration_data["volunteer_id"] = str(registration_data["volunteer_id"])
+        registration_data["event_id"] = str(registration_data["event_id"])
         return Registration(**registration_data)
 
 
