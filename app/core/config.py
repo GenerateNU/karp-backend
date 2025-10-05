@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "karp"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int
+    GOOGLE_MAPS_KEY: str
 
     class Config:
         env_file = ".env"

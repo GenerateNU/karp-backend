@@ -2,6 +2,8 @@ from enum import Enum
 
 from pydantic import BaseModel
 
+from app.schemas.data_types import Location
+
 
 class EventType(str, Enum):
     ANIMAL_SHELTER = "Animal Shelter"
@@ -20,6 +22,7 @@ class Volunteer(BaseModel):
     preferences: list[EventType]  # come back
     is_active: bool = True
     experience: int = 0
+    location: Location
 
     class Config:
         from_attributes = True
@@ -31,6 +34,7 @@ class CreateVolunteerRequest(BaseModel):
     age: int
     coins: int
     preferences: list[EventType]
+    location: Location
 
 
 class UpdateVolunteerRequest(BaseModel):
@@ -40,3 +44,4 @@ class UpdateVolunteerRequest(BaseModel):
     coins: int | None = None
     preferences: list[EventType] | None = None
     is_active: bool | None = None
+    location: Location | None = None
