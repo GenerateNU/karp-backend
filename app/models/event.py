@@ -8,6 +8,7 @@ from app.database.mongodb import db
 from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStatusRequest
 from app.schemas.data_types import Location
 from app.services.event import EventService
+from app.services.volunteer import VolunteerService
 from app.models.volunteer import volunteer_model
 from app.models.user import user_model
 
@@ -15,6 +16,7 @@ from app.models.user import user_model
 class EventModel:
     def __init__(self):
         self.event_service = EventService()
+        self.volunteer_service = VolunteerService()
         self.collection: AsyncIOMotorCollection = db["events"]
 
     async def create_event(self, event: CreateEventRequest, user_id: str) -> Event:
@@ -87,7 +89,7 @@ class EventModel:
             await volunteer_model.update_volunteer(
                 volunteer["id"], {"coins": volunteer["coins"] + event["coins"]}
             )
-            await volunteer_model.check_level_up(volunteer)
+            await self.volunteer_service.check_level_up(volunteer)
 
     async def delete_event_by_id(self, event_id: str) -> None:
         event = await self.collection.find_one({"_id": ObjectId(event_id)})
