@@ -4,8 +4,9 @@ from bson import ObjectId
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
+from app.core.enums import SortOrder
 from app.database.mongodb import db
-from app.schemas.item import CreateItemRequest, Item, UpdateItemRequest
+from app.schemas.item import CreateItemRequest, Item, ItemSortParam, UpdateItemRequest
 from app.utils.object_id import parse_object_id
 
 
@@ -28,6 +29,36 @@ class ItemModel:
 
     async def get_all_items(self) -> list[Item]:
         items_list = await self.collection.find().to_list(length=None)
+
+        return [self.to_item(item) for item in items_list]
+
+    async def get_items(
+        self,
+        search_text: str | None = None,
+        vendor_id: str | None = None,
+        sort_by: ItemSortParam | None = None,
+        sort_order: SortOrder = SortOrder.ASC,
+    ) -> list[Item]:
+        query = {}
+
+        if search_text:
+            query["name"] = {
+                "$regex": search_text,
+                "$options": "i",
+            }  # case-insensitive partial match
+
+        if vendor_id:
+            query["vendor_id"] = ObjectId(vendor_id)
+
+        sort_criteria = []
+        if sort_by:
+            sort_direction = 1 if sort_order == SortOrder.ASC else -1
+            sort_criteria.append((sort_by.field_name, sort_direction))
+
+        if sort_criteria:
+            items_list = await self.collection.find(query).sort(sort_criteria).to_list()
+        else:
+            items_list = await self.collection.find(query).to_list()
 
         return [self.to_item(item) for item in items_list]
 

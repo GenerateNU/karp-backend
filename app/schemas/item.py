@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 
 from pydantic import BaseModel
 
@@ -14,6 +15,21 @@ class Item(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ItemSortParam(str, Enum):
+    DATE = "date"
+    NAME = "name"
+    COINS = "coins"
+
+    @property
+    def field_name(self) -> str:
+        field_mapping = {
+            ItemSortParam.DATE: "time_posted",
+            ItemSortParam.NAME: "name",
+            ItemSortParam.COINS: "price",
+        }
+        return field_mapping[self]
 
 
 class CreateItemRequest(BaseModel):

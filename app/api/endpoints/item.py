@@ -3,7 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from app.api.endpoints.user import get_current_user
-from app.models.item import item_model
+from app.core.enums import SortOrder
+from app.models.item import ItemSortParam, item_model
 from app.schemas.item import CreateItemRequest, Item, UpdateItemRequest
 from app.schemas.user import User, UserType
 from app.services.item import ItemService
@@ -27,8 +28,13 @@ async def post_item(
 
 
 @router.get("/all", response_model=list[Item])
-async def get_items() -> list[Item]:
-    return await item_model.get_all_items()
+async def get_items(
+    search_text: str | None = None,
+    vendor_id: str | None = None,
+    sort_by: ItemSortParam | None = None,
+    sort_order: SortOrder = SortOrder.ASC,
+) -> list[Item]:
+    return await item_model.get_items(search_text, vendor_id, sort_by, sort_order)
 
 
 @router.get("/{item_id}", response_model=Item)
