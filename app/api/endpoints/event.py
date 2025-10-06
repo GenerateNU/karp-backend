@@ -1,15 +1,16 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status, Query
 
 from app.api.endpoints.user import get_current_user
 from app.models.event import event_model
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
+from app.schemas.data_types import Location
 from app.schemas.user import User, UserType
 from app.services.event import EventService
 
 router = APIRouter()
-event_service = EventService(event_model)
+event_service = EventService()
 
 
 @router.get("/all", response_model=list[Event])
@@ -29,6 +30,17 @@ async def get_events_by_org(organization_id: str) -> list[Event]:
     return event_list
 
 
+@router.get("/near", response_model=list[Event])
+async def get_events_near(
+    lat: float = Query(..., ge=-90, le=90),
+    lng: float = Query(..., ge=-180, le=180),
+    distance_km: float = Query(25, gt=0, le=200),
+) -> list[Event]:
+    location = Location(type="Point", coordinates=[lng, lat])
+    max_distance_meters = int(distance_km * 1000)
+    return await event_model.get_events_by_location(max_distance_meters, location)
+
+
 @router.post("/new", response_model=Event)
 async def create_event(
     event: Annotated[CreateEventRequest, Body(...)],
@@ -40,7 +52,7 @@ async def create_event(
             detail="Only users with organization role can create an event",
         )
 
-    if current_user.entity_id is None:
+    if current_user.entity_id is None and current_user.user_type != UserType.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must be associated with an organization to create an event",
@@ -62,13 +74,13 @@ async def update_event_status(
             detail="Only users with organization role can create an event",
         )
 
-    if current_user.entity_id is None:
+    if current_user.entity_id is None and current_user.user_type != UserType.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must be associated with an organization to create an event",
         )
 
-    await event_service.authorize_org(event_id, current_user.id)
+    await event_service.authorize_org(event_id, current_user.entity_id)
     updated_event = await event_model.update_event_status(event_id, event)
     return updated_event
 
@@ -83,7 +95,7 @@ async def clear_event_by_id(
             detail="Only users with organization role can delete an event",
         )
 
-    if current_user.entity_id is None:
+    if current_user.entity_id is None and current_user.user_type != UserType.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must be associated with an organization to delete an event",
@@ -94,5 +106,12 @@ async def clear_event_by_id(
 
 
 @router.delete("/clear", response_model=None)
-async def clear_events() -> None:
+async def clear_events(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    if current_user.user_type != UserType.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can delete all events",
+        )
     return await event_model.delete_all_events()
