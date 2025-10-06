@@ -4,10 +4,19 @@ from enum import Enum
 from pydantic import BaseModel
 
 
+class Status(str, Enum):
+    APPROVED = "APPROVED"
+    IN_REVIEW = "IN_REVIEW"
+    REJECTED = "REJECTED"
+    DELETED = "DELETED"
+    ACTIVE = "ACTIVE"
+    CLAIMED = "CLAIMED"
+
+
 class Item(BaseModel):
     id: str
     name: str
-    status: str
+    status: Status
     vendor_id: str
     time_posted: datetime = datetime.now()
     expiration: datetime
@@ -41,4 +50,4 @@ class UpdateItemRequest(BaseModel):
     name: str | None = None
     price: int | None = None
     expiration: datetime | None = None
-    status: str | None = None
+    status: Status | None = None

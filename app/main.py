@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.endpoints import (
     achievement,
+    admin,
     event,
     health,
     item,
@@ -36,6 +37,8 @@ app.add_middleware(
 app.include_router(health.router, prefix="", tags=["health"])
 
 app.include_router(user.router, prefix="/user", tags=["user"])
+
+app.include_router(admin.router, prefix="/admin", tags=["admin"])
 
 app.include_router(item.router, prefix="/item", tags=["item"])
 
