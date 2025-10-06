@@ -75,9 +75,29 @@ class RegistrationModel:
     async def create_registration(
         self, registration: CreateRegistrationRequest, volunteer_id: str
     ) -> Registration:
+        event_obj_id = ObjectId(registration.event_id)
+        volunteer_obj_id = ObjectId(volunteer_id)
+
+        existing = await self.registrations.find_one(
+            {"event_id": event_obj_id, "volunteer_id": volunteer_obj_id}
+        )
+
+        if existing:
+            await self.registrations.update_one(
+                {"_id": existing["_id"]},
+                {
+                    "$set": {
+                        "registration_status": RegistrationStatus.UPCOMING,
+                        "registered_at": datetime.now(),
+                    }
+                },
+            )
+            updated_doc = await self.registrations.find_one({"_id": existing["_id"]})
+            return self._to_registration(updated_doc)
+
         registration_data = {
-            "event_id": ObjectId(registration.event_id),
-            "volunteer_id": ObjectId(volunteer_id),
+            "event_id": event_obj_id,
+            "volunteer_id": volunteer_obj_id,
             "registered_at": datetime.now(),
             "registration_status": RegistrationStatus.UPCOMING,
             "clocked_in": False,
