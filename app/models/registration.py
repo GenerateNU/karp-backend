@@ -89,6 +89,29 @@ class RegistrationModel:
 
         return self._to_registration(inserted_doc)
 
+    async def unregister_registration(
+        self, registration_id: str, volunteer_id: str
+    ) -> Registration:
+        registration = await self.registrations.find_one({"_id": ObjectId(registration_id)})
+
+        if not registration:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Registration not found"
+            )
+
+        if str(registration["volunteer_id"]) != volunteer_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to unregister from this event",
+            )
+
+        await self.registrations.update_one(
+            {"_id": ObjectId(registration_id)},
+            {"$set": {"registration_status": RegistrationStatus.UNREGISTERED}},
+        )
+        updated_doc = await self.registrations.find_one({"_id": ObjectId(registration_id)})
+        return self._to_registration(updated_doc)
+
     def _to_registration(self, doc) -> Registration:
         registration_data = doc.copy()
         registration_data["id"] = str(registration_data["_id"])
