@@ -20,6 +20,7 @@ from app.schemas.admin import (
     VendorApplicationID,
 )
 from app.schemas.user import User, UserType
+from app.utils.user import hash_password
 
 router = APIRouter()
 
@@ -45,7 +46,17 @@ async def create_admin(
     except ValueError:
         pass
 
-    return await admin_model.create_admin(admin_data, current_user.id)
+    # Hash password and prepare admin data
+    admin_data_dict = admin_data.model_dump()
+    admin_data_dict["hashed_password"] = hash_password(admin_data_dict.pop("password"))
+    admin_data_dict["user_type"] = "ADMIN"
+    admin_data_dict["org_applications"] = []
+    admin_data_dict["vendor_applications"] = []
+
+    admin = await admin_model.create_admin(admin_data_dict, current_user.id)
+    admin_dict = admin.model_dump()
+    admin_dict["user_type"] = "ADMIN"
+    return AdminResponse(**admin_dict)
 
 
 @router.get("/all", response_model=list[AdminResponse])
@@ -57,7 +68,8 @@ async def get_all_admins(
             status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can view admin list"
         )
 
-    return await admin_model.get_all_admins()
+    admins = await admin_model.get_all_admins()
+    return [AdminResponse(**{**admin.model_dump(), "user_type": "ADMIN"}) for admin in admins]
 
 
 @router.post("/approve/organization", response_model=None)

@@ -4,7 +4,6 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 from app.database.mongodb import db
 from app.schemas.admin import (
     Admin,
-    CreateAdminRequest,
     OrgApplicationID,
     VendorApplicationID,
 )
@@ -14,9 +13,7 @@ class AdminModel:
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["admins"]
 
-    async def create_admin(self, admin: CreateAdminRequest, admin_id: str) -> Admin:
-        admin_data = admin.model_dump()
-
+    async def create_admin(self, admin_data: dict, admin_id: str) -> Admin:
         result = await self.collection.insert_one(admin_data)
         admin_data["_id"] = result.inserted_id
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
