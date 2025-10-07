@@ -80,7 +80,7 @@ async def unregister_registration(
 
     return await registration_model.unregister_registration(registration_id, current_user.entity_id)
 
-@router.put("/check-in/{event_id}", response_model=Registration)
+@router.put("/check-in/{volunteer_id}", response_model=Registration)
 async def check_in_registration(
     event_id: str,
     volunteer_id: str,
@@ -99,7 +99,7 @@ async def check_in_registration(
 
     return await registration_model.check_in_registration(volunteer_id, event_id)
 
-@router.put("/check-out/{event_id}", response_model=Registration)
+@router.put("/check-out/{volunteer_id}", response_model=Registration)
 async def check_out_registration(
     event_id: str,
     volunteer_id: str,

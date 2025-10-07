@@ -134,18 +134,18 @@ class RegistrationModel:
 
     async def check_in_registration(self, volunteer_id: str, event_id: str) -> Registration:
         await self.registrations.update_one(
-            {"_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)},
+            {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)},
             {"$set": {"clocked_in": True}},
         )
-        updated_doc = await self.registrations.find_one({"_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)})
+        updated_doc = await self.registrations.find_one({"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)})
         return self._to_registration(updated_doc)
 
     async def check_out_registration(self, volunteer_id: str, event_id: str) -> Registration:
         await self.registrations.update_one(
-            {"_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)},
+            {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)},
             {"$set": {"clocked_out": True}},
         )
-        updated_doc = await self.registrations.find_one({"_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)})
+        updated_doc = await self.registrations.find_one({"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)})
         return self._to_registration(updated_doc)
 
     def _to_registration(self, doc) -> Registration:
