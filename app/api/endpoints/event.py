@@ -1,4 +1,5 @@
 from typing import Annotated
+from typing import Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status, Query
 
@@ -40,6 +41,28 @@ async def get_events_near(
     max_distance_meters = int(distance_km * 1000)
     return await event_model.get_events_by_location(max_distance_meters, location)
 
+
+@router.get("/search", response_model=list[Event])
+async def search_events(
+    q: str | None = Query(None, description="Search term (name, description, keywords)"),
+    sort_by: Literal["start_date_time", "name", "coins", "max_volunteers"] = Query(
+        "start_date_time"
+    ),
+    sort_dir: Literal["asc", "desc"] = Query("asc"),
+    organization_id: str | None = Query(None),
+    age: int | None = Query(None, ge=0, description="User age for eligibility filtering"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=200),
+) -> list[Event]:
+    return await event_model.search_events(
+        q=q,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        organization_id=organization_id,
+        age=age,
+        page=page,
+        limit=limit,
+    )
 
 @router.post("/new", response_model=Event)
 async def create_event(
