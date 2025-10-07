@@ -1,6 +1,5 @@
 from typing import Annotated
 
-from bson import ObjectId
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from app.api.endpoints.user import get_current_user
@@ -11,16 +10,13 @@ from app.models.organization import org_model
 from app.models.vendor import vendor_model
 from app.schemas.admin import (
     AdminResponse,
-    ApproveEventRequest,
-    ApproveItemRequest,
-    ApproveOrganizationRequest,
-    ApproveVendorRequest,
     CreateAdminRequest,
-    OrgApplicationID,
-    VendorApplicationID,
+    UpdateEventRequest,
+    UpdateItemRequest,
+    UpdateOrganizationRequest,
+    UpdateVendorRequest,
 )
 from app.schemas.user import User, UserType
-from app.utils.user import hash_password
 
 router = APIRouter()
 
@@ -37,7 +33,9 @@ async def create_admin(
 
     # Check if admin already exists
     try:
+        print(admin_data.email)
         existing_admin = await admin_model.get_admin_by_email(admin_data.email)
+        print("existing_admin", existing_admin)
         if existing_admin:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -46,14 +44,7 @@ async def create_admin(
     except ValueError:
         pass
 
-    # Hash password and prepare admin data
-    admin_data_dict = admin_data.model_dump()
-    admin_data_dict["hashed_password"] = hash_password(admin_data_dict.pop("password"))
-    admin_data_dict["user_type"] = "ADMIN"
-    admin_data_dict["org_applications"] = []
-    admin_data_dict["vendor_applications"] = []
-
-    admin = await admin_model.create_admin(admin_data_dict, current_user.id)
+    admin = await admin_model.create_admin(current_user.id)
     admin_dict = admin.model_dump()
     admin_dict["user_type"] = "ADMIN"
     return AdminResponse(**admin_dict)
@@ -69,12 +60,12 @@ async def get_all_admins(
         )
 
     admins = await admin_model.get_all_admins()
-    return [AdminResponse(**{**admin.model_dump(), "user_type": "ADMIN"}) for admin in admins]
+    return [AdminResponse(**admin.model_dump()) for admin in admins]
 
 
-@router.post("/approve/organization", response_model=None)
-async def approve_organization(
-    approval_data: Annotated[ApproveOrganizationRequest, Body(...)],
+@router.post("/change-status/organization", response_model=None)
+async def change_org_status(
+    approval_data: Annotated[UpdateOrganizationRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> None:
     if current_user.user_type != UserType.ADMIN:
@@ -88,18 +79,10 @@ async def approve_organization(
     update_data = UpdateOrganizationRequest(status=Status(approval_data.status))
     await org_model.update_organization(approval_data.organization_id, update_data)
 
-    # Add to admin's application list
-    org_application = OrgApplicationID(
-        id=str(ObjectId()),
-        organization_id=approval_data.organization_id,
-        status=approval_data.status,
-    )
-    await admin_model.add_org_application(current_user.id, org_application)
 
-
-@router.post("/approve/vendor", response_model=None)
-async def approve_vendor(
-    approval_data: Annotated[ApproveVendorRequest, Body(...)],
+@router.post("/change-status/vendor", response_model=None)
+async def change_vendor_status(
+    approval_data: Annotated[UpdateVendorRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> None:
     if current_user.user_type != UserType.ADMIN:
@@ -113,16 +96,10 @@ async def approve_vendor(
     update_data = UpdateVendorRequest(status=VendorStatus(approval_data.status))
     await vendor_model.update_vendor(approval_data.vendor_id, update_data)
 
-    # Add to admin's application list
-    vendor_application = VendorApplicationID(
-        id=str(ObjectId()), vendor_id=approval_data.vendor_id, status=approval_data.status
-    )
-    await admin_model.add_vendor_application(current_user.id, vendor_application)
 
-
-@router.post("/approve/item", response_model=None)
-async def approve_item(
-    approval_data: Annotated[ApproveItemRequest, Body(...)],
+@router.post("/change-status/item", response_model=None)
+async def change_item_status(
+    approval_data: Annotated[UpdateItemRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> None:
     if current_user.user_type != UserType.ADMIN:
@@ -134,12 +111,12 @@ async def approve_item(
     from app.schemas.item import UpdateItemRequest
 
     update_data = UpdateItemRequest(status=approval_data.status)
-    await item_model.update_item(approval_data.item_id, update_data)
+    await item_model.update_item(update_data, approval_data.item_id)
 
 
-@router.post("/approve/event", response_model=None)
-async def approve_event(
-    approval_data: Annotated[ApproveEventRequest, Body(...)],
+@router.post("/change-status/event", response_model=None)
+async def change_event_status(
+    approval_data: Annotated[UpdateEventRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> None:
     if current_user.user_type != UserType.ADMIN:
