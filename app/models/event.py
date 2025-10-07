@@ -132,7 +132,10 @@ class EventModel:
         filters: dict = {}
 
         if organization_id:
-            filters["organization_id"] = organization_id
+            try:
+                filters["organization_id"] = ObjectId(organization_id)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid organization_id")
 
         if age is not None:
             age_clause = {
