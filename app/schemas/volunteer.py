@@ -1,16 +1,6 @@
-from enum import Enum
-
 from pydantic import BaseModel
 
-from app.schemas.data_types import Location
-
-
-class EventType(str, Enum):
-    ANIMAL_SHELTER = "Animal Shelter"
-    HOMELESS_SHELTER = "Homeless Shelter"
-    FOOD_PANTRY = "Food Pantry"
-    CLEANUP = "Cleanup"
-    TUTORING = "Tutoring"
+from app.schemas.data_types import EventType, Location
 
 
 class Volunteer(BaseModel):
@@ -19,7 +9,7 @@ class Volunteer(BaseModel):
     last_name: str
     age: int
     coins: int
-    preferences: list[EventType]  # come back
+    preferences: list[EventType]
     is_active: bool = True
     experience: int = 0
     location: Location

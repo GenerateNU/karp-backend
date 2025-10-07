@@ -2,7 +2,8 @@ from datetime import UTC, datetime
 
 from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from app.schemas.data_types import Status, Location
+
+from app.schemas.data_types import EventType, Location, Status
 
 
 class Event(BaseModel):
@@ -16,6 +17,7 @@ class Event(BaseModel):
     status: Status
     max_volunteers: int
     coins: int
+    tags: list[EventType] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     created_by: str
 
@@ -40,6 +42,7 @@ class CreateEventRequest(BaseModel):
     end_date_time: datetime
     max_volunteers: int
     coins: int
+    tags: list[EventType] = Field(default_factory=list)
 
 
 class UpdateEventStatusRequest(BaseModel):
@@ -50,5 +53,6 @@ class UpdateEventStatusRequest(BaseModel):
     start_date_time: datetime | None = None
     end_date_time: datetime | None = None
     coins: int | None = None
+    tags: list[EventType] | None = None
 
     model_config = ConfigDict(use_enum_values=True, from_attributes=True)
