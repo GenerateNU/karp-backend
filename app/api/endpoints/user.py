@@ -221,7 +221,7 @@ async def oauth_scheme_token(form_data: Annotated[OAuth2PasswordRequestForm, Dep
     Generate access token using email (provided in OAuth2 `username` field).
     Returns only the token payload for OAuth2 compatibility.
     """
-    user = await user_model.get_by_email(form_data.username)
+    user = await user_model.get_by_username(form_data.username.lower())
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
