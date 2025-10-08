@@ -79,3 +79,41 @@ async def unregister_registration(
         )
 
     return await registration_model.unregister_registration(registration_id, current_user.entity_id)
+
+@router.put("/check-in/{volunteer_id}", response_model=Registration)
+async def check_in_registration(
+    event_id: str,
+    volunteer_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Registration:
+
+    if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only organizations can check in volunteers",
+        )
+
+    volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)
+    if not volunteer:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
+
+    return await registration_model.check_in_registration(volunteer_id, event_id)
+
+@router.put("/check-out/{volunteer_id}", response_model=Registration)
+async def check_out_registration(
+    event_id: str,
+    volunteer_id: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Registration:
+
+    if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only organizations can check out volunteers",
+        )
+
+    volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)
+    if not volunteer:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
+
+    return await registration_model.check_out_registration(volunteer_id, event_id)
