@@ -8,11 +8,14 @@ from app.database.mongodb import db
 from app.models.event import event_model
 from app.schemas.event import Event
 from app.schemas.registration import CreateRegistrationRequest, Registration, RegistrationStatus
+from app.models.volunteer import volunteer_model
+from app.services.volunteer import VolunteerService
 
 
 class RegistrationModel:
     def __init__(self):
         self.registrations: AsyncIOMotorCollection = db["registrations"]
+        self.volunteer_service = VolunteerService()
 
     async def get_volunteers_by_event(self, event_id: str) -> list[Registration]:
         event = await event_model.get_event_by_id(event_id)
@@ -135,16 +138,26 @@ class RegistrationModel:
     async def check_in_registration(self, volunteer_id: str, event_id: str) -> Registration:
         await self.registrations.update_one(
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)},
-            {"$set": {"clocked_in": True}},
+            {"$set": {"clocked_in": datetime.now()}},
         )
         updated_doc = await self.registrations.find_one({"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)})
         return self._to_registration(updated_doc)
 
     async def check_out_registration(self, volunteer_id: str, event_id: str) -> Registration:
-        await self.registrations.update_one(
+        event = await event_model.get_event_by_id(event_id)
+        volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)
+        registration = await self.registrations.update_one(
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)},
-            {"$set": {"clocked_out": True}},
+            {"$set": {"clocked_out": datetime.now()}},
         )
+
+        duration = registration["clocked_out"] - registration["clocked_in"]
+        exp = duration.total_seconds() / 36  # 3600 seconds in an hour * 100 exp per hour
+        await volunteer_model.update_volunteer(volunteer_id, {"exp": volunteer["exp"] + exp})
+        await volunteer_model.update_volunteer(
+            volunteer_id, {"coins": volunteer["coins"] + event["coins"]}
+        )
+        await self.volunteer_service.check_level_up(volunteer)
         updated_doc = await self.registrations.find_one({"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)})
         return self._to_registration(updated_doc)
 
