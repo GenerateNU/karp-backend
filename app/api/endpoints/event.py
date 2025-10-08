@@ -8,9 +8,22 @@ from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusReques
 from app.schemas.data_types import Location
 from app.schemas.user import User, UserType
 from app.services.event import EventService
+from app.services.registration import RegistrationService
+from app.services.volunteer import VolunteerService
+from app.services.volunteer_achievements import VolunteerAchievementsService
+from app.services.context import ServiceContext
 
 router = APIRouter()
 event_service = EventService()
+
+
+def make_ctx() -> ServiceContext:
+    return ServiceContext(
+        event=EventService(),
+        registration=RegistrationService(),
+        volunteer=VolunteerService(),
+        volunteer_achievements=VolunteerAchievementsService(),
+    )
 
 
 @router.get("/all", response_model=list[Event])
@@ -80,8 +93,11 @@ async def update_event_status(
             detail="You must be associated with an organization to create an event",
         )
 
-    await event_service.authorize_org(event_id, current_user.entity_id)
-    updated_event = await event_model.update_event_status(event_id, event)
+    ctx = make_ctx()
+    # Get event for authorization
+    event_data = await event_model.get_event_by_id(event_id)
+    ctx.need_event().authorize_org(event_data, current_user.entity_id)
+    updated_event = await event_model.update_event_status(event_id, event, ctx)
     return updated_event
 
 

@@ -1,16 +1,18 @@
-from datetime import datetime
-from app.models.registration import registration_model
+from __future__ import annotations
+from typing import Any
+from datetime import datetime, timezone
 
 
 class RegistrationService:
-    def __init__(self, model=None):
-        self.model = registration_model
+    async def bulk_checkout_missing(self, regs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Helper to identify and prepare checkout updates for volunteers who haven't checked out"""
+        now = datetime.now(timezone.utc)
+        out = []
+        for r in regs:
+            if r.get("clocked_out") is None:
+                out.append({**r, "clocked_out": now})
+        return out
 
-    async def update_not_checked_out_volunteers(self, event_id: str) -> None:
-        volunteers = await self.model.get_volunteers_by_event(event_id)
-        for volunteer in volunteers:
-            if volunteer["clocked_out"] is None:
-                volunteer["clocked_out"] = datetime.now()
-                await self.model.update_registration(
-                    volunteer["id"], {"clocked_out": volunteer["clocked_out"]}
-                )
+    async def should_level_up(self, reg: dict[str, Any]) -> str | None:
+        """Business rule: return volunteer_id if we should check level-up"""
+        return reg.get("volunteer_id")

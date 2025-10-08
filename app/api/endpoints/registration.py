@@ -8,8 +8,16 @@ from app.models.volunteer import volunteer_model
 from app.schemas.event import Event
 from app.schemas.registration import CreateRegistrationRequest, Registration, RegistrationStatus
 from app.schemas.user import User, UserType
+from app.services.volunteer import VolunteerService
+from app.services.context import ServiceContext
 
 router = APIRouter()
+
+
+def make_ctx() -> ServiceContext:
+    return ServiceContext(
+        volunteer=VolunteerService(),
+    )
 
 
 # do we want to make this partiful s.t. only volunteers signed up for the event can see who going?
@@ -80,6 +88,7 @@ async def unregister_registration(
 
     return await registration_model.unregister_registration(registration_id, current_user.entity_id)
 
+
 @router.put("/check-in/{volunteer_id}", response_model=Registration)
 async def check_in_registration(
     event_id: str,
@@ -99,6 +108,7 @@ async def check_in_registration(
 
     return await registration_model.check_in_registration(volunteer_id, event_id)
 
+
 @router.put("/check-out/{volunteer_id}", response_model=Registration)
 async def check_out_registration(
     event_id: str,
@@ -116,4 +126,9 @@ async def check_out_registration(
     if not volunteer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
 
-    return await registration_model.check_out_registration(volunteer_id, event_id)
+    ctx = make_ctx()
+    # Get event data to pass to registration model
+    from app.models.event import event_model
+
+    event_data = await event_model.get_event_by_id(event_id)
+    return await registration_model.check_out_registration(volunteer_id, event_id, event_data, ctx)

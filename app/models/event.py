@@ -7,18 +7,13 @@ from motor.motor_asyncio import AsyncIOMotorCollection
 from app.database.mongodb import db
 from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStatusRequest
 from app.schemas.data_types import Location
-from app.services.event import EventService
-from app.services.volunteer import VolunteerService
-from app.services.registration import RegistrationService
+from app.services.context import ServiceContext
 from app.models.volunteer import volunteer_model
 from app.models.user import user_model
 
 
 class EventModel:
     def __init__(self):
-        self.event_service = EventService()
-        self.volunteer_service = VolunteerService()
-        self.registration_service = RegistrationService()
         self.collection: AsyncIOMotorCollection = db["events"]
 
     async def create_event(self, event: CreateEventRequest, user_id: str) -> Event:
@@ -66,7 +61,7 @@ class EventModel:
         return [Event(**event) for event in events_list]
 
     async def update_event_status(
-        self, event_id: str, event: UpdateEventStatusRequest
+        self, event_id: str, event: UpdateEventStatusRequest, ctx: ServiceContext
     ) -> Event | None:
         event_data = await self.collection.find_one({"_id": ObjectId(event_id)})
         if event_data:
@@ -77,10 +72,64 @@ class EventModel:
             event_data.update(updated_data)
 
             if event_data["status"] == Status.COMPLETED:
-                await self.registration_service.update_not_checked_out_volunteers(event_id)
+                await self.mark_event_completed(event_id, event_data, ctx)
 
             return self.to_event(event_data)
         raise HTTPException(status_code=404, detail="No event with this ID was found")
+
+    async def mark_event_completed(
+        self, event_id: str, event_data: dict, ctx: ServiceContext
+    ) -> None:
+        """Mark event as completed and handle volunteer rewards"""
+        # Get volunteers for this event
+        from app.models.registration import registration_model
+
+        volunteers = await registration_model.get_volunteers_by_event(event_id)
+
+        # Calculate EXP reward
+        exp_reward = ctx.need_event().calculate_exp_reward(
+            event_data["start_date_time"], event_data["end_date_time"]
+        )
+
+        # Update volunteers who haven't checked out
+        to_update = await ctx.need_registration().bulk_checkout_missing(volunteers)
+
+        for volunteer in to_update:
+            # Update clocked_out time
+            await registration_model.update_registration(
+                volunteer["id"], {"clocked_out": volunteer["clocked_out"]}
+            )
+
+            # Add EXP and coins
+            await volunteer_model.update_volunteer(
+                volunteer["volunteer_id"], {"exp": volunteer.get("exp", 0) + exp_reward}
+            )
+            await volunteer_model.update_volunteer(
+                volunteer["volunteer_id"],
+                {"coins": volunteer.get("coins", 0) + event_data["coins"]},
+            )
+
+            # Check for level up
+            updated_volunteer = await volunteer_model.get_volunteer_by_id(volunteer["volunteer_id"])
+            if ctx.need_volunteer().should_level_up(updated_volunteer):
+                new_level = ctx.need_volunteer().get_new_level(updated_volunteer)
+                await volunteer_model.update_volunteer(
+                    volunteer["volunteer_id"], {"level": new_level}
+                )
+
+                # Add achievement if needed
+                if ctx.need_volunteer_achievements().should_add_achievement(
+                    volunteer["volunteer_id"], new_level
+                ):
+                    achievement_id = ctx.need_volunteer_achievements().get_level_achievement_id(
+                        new_level
+                    )
+                    achievement_data = ctx.need_volunteer_achievements().create_achievement_request(
+                        volunteer["volunteer_id"], achievement_id
+                    )
+                    from app.models.volunteer_achievement import volunteer_achievement_model
+
+                    await volunteer_achievement_model.create_volunteer_achievement(achievement_data)
 
     async def delete_event_by_id(self, event_id: str) -> None:
         event = await self.collection.find_one({"_id": ObjectId(event_id)})
