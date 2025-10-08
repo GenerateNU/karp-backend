@@ -76,13 +76,13 @@ class EventModel:
             event_data.update(updated_data)
 
             if event_data["status"] == Status.COMPLETED:
-                await self.update_not_checked_out_volunteers(event_data)
+                await self.update_not_checked_out_volunteers(event_id)
 
             return self.to_event(event_data)
         raise HTTPException(status_code=404, detail="No event with this ID was found")
 
-    async def update_not_checked_out_volunteers(self, event: Event) -> None:
-        volunteers = await registration_model.get_volunteers_by_event(event["id"])
+    async def update_not_checked_out_volunteers(self, event_id: str) -> None:
+        volunteers = await registration_model.get_volunteers_by_event(event_id)
         for volunteer in volunteers:
             if volunteer["clocked_out"] is None:
                 volunteer["clocked_out"] = datetime.now()
