@@ -140,7 +140,9 @@ class RegistrationModel:
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)},
             {"$set": {"clocked_in": datetime.now()}},
         )
-        updated_doc = await self.registrations.find_one({"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)})
+        updated_doc = await self.registrations.find_one(
+            {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)}
+        )
         return self._to_registration(updated_doc)
 
     async def check_out_registration(self, volunteer_id: str, event_id: str) -> Registration:
@@ -158,7 +160,9 @@ class RegistrationModel:
             volunteer_id, {"coins": volunteer["coins"] + event["coins"]}
         )
         await self.volunteer_service.check_level_up(volunteer)
-        updated_doc = await self.registrations.find_one({"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)})
+        updated_doc = await self.registrations.find_one(
+            {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)}
+        )
         return self._to_registration(updated_doc)
 
     def _to_registration(self, doc) -> Registration:
