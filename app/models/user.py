@@ -43,7 +43,11 @@ class UserModel:
         )
 
     async def update_entity_id_by_id(self, user_id: str, entity_id: str) -> None:
-        await self.collection.update_one({"id": user_id}, {"$set": {"entity_id": entity_id}})
+        result = await self.collection.update_one(
+            {"id": user_id}, {"$set": {"entity_id": entity_id}}
+        )
+        if result.modified_count != 1:
+            raise ValueError(f"Failed to update entity_id for user {user_id}")
 
     async def owns_entity(self, user_id: str, entity_id: str) -> bool:
         user = await user_model.get_by_id(user_id)

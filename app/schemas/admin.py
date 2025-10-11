@@ -1,6 +1,8 @@
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+
+from .user import User
 
 
 class Status(str, Enum):
@@ -10,26 +12,10 @@ class Status(str, Enum):
     DELETED = "DELETED"
 
 
-class OrgApplicationID(BaseModel):
+class Admin(User):
+    # inherits everything from Membership
     id: str
-    organization_id: str
-    status: Status
-
-
-class VendorApplicationID(BaseModel):
-    id: str
-    vendor_id: str
-    status: Status
-
-
-class Admin(BaseModel):
-    id: str
-    first_name: str
-    last_name: str
-    email: str
-    username: str
-    org_applications: list[OrgApplicationID] = Field(default_factory=list)
-    vendor_applications: list[VendorApplicationID] = Field(default_factory=list)
+    is_active: bool
 
     class Config:
         from_attributes = True
@@ -41,9 +27,6 @@ class AdminResponse(BaseModel):
     last_name: str
     email: str
     username: str
-    user_type: str
-    org_applications: list[OrgApplicationID] = Field(default_factory=list)
-    vendor_applications: list[VendorApplicationID] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -57,21 +40,21 @@ class CreateAdminRequest(BaseModel):
     last_name: str
 
 
-class ApproveOrganizationRequest(BaseModel):
+class UpdateOrganizationRequest(BaseModel):
     organization_id: str
     status: str
 
 
-class ApproveVendorRequest(BaseModel):
+class UpdateVendorRequest(BaseModel):
     vendor_id: str
     status: str
 
 
-class ApproveItemRequest(BaseModel):
+class UpdateItemRequest(BaseModel):
     item_id: str
     status: str
 
 
-class ApproveEventRequest(BaseModel):
+class UpdateEventRequest(BaseModel):
     event_id: str
     status: str
