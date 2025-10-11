@@ -13,7 +13,23 @@ create_new_event_url = "http://localhost:8080/event/new"
 create_new_vendor_url = "http://localhost:8080/vendor/new"
 create_new_item_url = "http://localhost:8080/item/new"
 get_orgs_url = "http://localhost:8080/organization/all"
-for _ in range(5):
+create_new_order_url = "http://localhost:8080/order/new"
+create_new_registration_url = "http://localhost:8080/registration/new"
+item_ids = [
+    "68e1d1c5c320a33ba155f260",
+    "68e1d1c6c320a33ba155f264",
+    "68e1d1c7c320a33ba155f268",
+    "68e1d1c7c320a33ba155f26c",
+    "68e1d1c8c320a33ba155f270",
+]
+event_ids = [
+    "68e4774368a5c39282e7a9b7",
+    "68e4774468a5c39282e7a9bb",
+    "68e4774568a5c39282e7a9bf",
+    "68e4774668a5c39282e7a9c3",
+    "68e4774768a5c39282e7a9c7",
+]
+for _ in range(10):
     username = fake.user_name()
     password = fake.password()
     first_name = fake.first_name()
@@ -24,7 +40,7 @@ for _ in range(5):
         "password": password,
         "first_name": first_name,
         "last_name": last_name,
-        "user_type": "ORGANIZATION",
+        "user_type": "VOLUNTEER",
     }
     headers = {"Content-Type": "application/json"}
     response = requests.post(register_user_url, json=register_payload, headers=headers)
@@ -46,24 +62,40 @@ for _ in range(5):
             print("Status:", response.status_code)
             print("Response:", response.json())
             if response.status_code == 200:
-                # create_user_payload = {
-                #     "first_name": first_name,
-                #     "last_name": last_name,
-                #     "age": random.randint(18, 60),
-                #     "coins": random.randint(18, 300),
-                #     "preferences": [ random.choice(["Animal Shelter", "Homeless Shelter",
-                # "Food Pantry", "Cleanup", "Tutoring"])],
-                # }
+                create_user_payload = {
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "age": random.randint(18, 60),
+                    "coins": random.randint(18, 300),
+                    "preferences": [
+                        random.choice(
+                            [
+                                "Animal Shelter",
+                                "Homeless Shelter",
+                                "Food Pantry",
+                                "Cleanup",
+                                "Tutoring",
+                            ]
+                        )
+                    ],
+                    "location": {
+                        "type": "Point",  # usually "Point" for GeoJSON-style data
+                        "coordinates": [fake.longitude(), fake.latitude()],
+                    },
+                }
                 # create_vendor_payload = {
                 #     "name": fake.company(),
                 #     "business_type": random.choice(["Food", "Clothing", "Art"]),
                 # }
-                create_org_payload = {
-                    "name": fake.company(),
-                    "description": fake.sentence(),
-                }
+                # create_org_payload = {
+                #     "name": fake.company(),
+                #     "description": fake.sentence(),
+                # }
+                # create_order_payload = {
+                #     "item_id" : random.choice(item_ids)
+                # }
                 response = requests.post(
-                    create_new_org_url, json=create_org_payload, headers=headers
+                    create_new_volunteer_url, json=create_user_payload, headers=headers
                 )
                 print("Status:", response.status_code)
                 print("Response:", response.json())
@@ -72,38 +104,47 @@ for _ in range(5):
                     #     "name": fake.catch_phrase(),
                     #     "expiration": "2025-10-05T01:44:05.756Z",
                     # }
-                    create_event_payload = {
-                        "name": fake.catch_phrase(),
-                        "address": fake.address(),
-                        "location": {
-                            "type": "Point",  # usually "Point" for GeoJSON-style data
-                            "coordinates": [fake.longitude(), fake.latitude()],
-                        },
-                        "start_date_time": "2025-10-04T23:55:06.429Z",
-                        "end_date_time": "2025-10-04T23:58:06.550Z",
-                        "max_volunteers": random.randint(1, 300),
-                        "coins": random.randint(1, 500),
-                        "tags": [
-                            random.choice(
-                                [
-                                    "Animal Shelter",
-                                    "Homeless Shelter",
-                                    "Food Pantry",
-                                    "Cleanup",
-                                    "Tutoring",
-                                ]
-                            )
-                        ],
-                    }
+
+                    #     create_event_payload = {
+                    #         "name": fake.catch_phrase(),
+                    #         "address": fake.address(),
+                    #         "location": {
+                    #             "type": "Point",  # usually "Point" for GeoJSON-style data
+                    #             "coordinates": [fake.longitude(), fake.latitude()],
+                    #         },
+                    #         "start_date_time": "2025-10-04T23:55:06.429Z",
+                    #         "end_date_time": "2025-10-04T23:58:06.550Z",
+                    #         "max_volunteers": random.randint(1, 300),
+                    #         "coins": random.randint(1, 500),
+                    #         "tags": [
+                    #             random.choice(
+                    #                 [
+                    #                     "Animal Shelter",
+                    #                     "Homeless Shelter",
+                    #                     "Food Pantry",
+                    #                     "Cleanup",
+                    #                     "Tutoring",
+                    #                 ]
+                    #             )
+                    #         ],
+                    #     }
+
+                    # create_order_payload = {
+                    #     "item_id" : random.choice(item_ids)
+                    # }
+                    create_registration_payload = {"event_id": random.choice(event_ids)}
                     headers = {
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {bearer_token}",
                     }
                     response = requests.post(
-                        create_new_event_url, json=create_event_payload, headers=headers
+                        create_new_registration_url,
+                        json=create_registration_payload,
+                        headers=headers,
                     )
                     print("Status:", response.status_code)
-                    print("Response:", response.json())
+                    # print("Response:", response.json())
+
 
 # bearer_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ2ZXJ
 # vbmljYWJyb3duQGV4YW1wbGUub3JnIiwiZXhwIjoxNzU5NjQwODM2fQ
