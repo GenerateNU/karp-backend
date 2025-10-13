@@ -1,12 +1,11 @@
-from typing import Annotated
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.api.endpoints.user import get_current_user
 from app.models.event import event_model
-from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
 from app.schemas.data_types import Location
+from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
 from app.schemas.user import User, UserType
 from app.services.event import EventService
 
@@ -17,12 +16,6 @@ event_service = EventService()
 @router.get("/all", response_model=list[Event])
 async def get_events() -> list[Event]:
     return await event_model.get_all_events()
-
-
-@router.get("/{event_id}", response_model=Event | None)
-async def get_event_by_id(event_id: str) -> Event | None:
-    event = await event_model.get_event_by_id(event_id)
-    return event
 
 
 @router.get("/organization/{organization_id}", response_model=list[Event])
@@ -64,6 +57,7 @@ async def search_events(
         limit=limit,
     )
 
+
 @router.post("/new", response_model=Event)
 async def create_event(
     event: Annotated[CreateEventRequest, Body(...)],
@@ -82,6 +76,24 @@ async def create_event(
         )
 
     return await event_model.create_event(event, current_user.id)
+
+
+@router.delete("/clear", response_model=None)
+async def clear_events(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    if current_user.user_type != UserType.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can delete all events",
+        )
+    return await event_model.delete_all_events()
+
+
+@router.get("/{event_id}", response_model=Event | None)
+async def get_event_by_id(event_id: str) -> Event | None:
+    event = await event_model.get_event_by_id(event_id)
+    return event
 
 
 @router.put("/{event_id}", response_model=Event | None)
@@ -126,15 +138,3 @@ async def clear_event_by_id(
 
     await event_service.authorize_org(event_id, current_user.id)
     return await event_model.delete_event_by_id(event_id)
-
-
-@router.delete("/clear", response_model=None)
-async def clear_events(
-    current_user: Annotated[User, Depends(get_current_user)],
-) -> None:
-    if current_user.user_type != UserType.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can delete all events",
-        )
-    return await event_model.delete_all_events()
