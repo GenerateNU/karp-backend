@@ -16,6 +16,10 @@ class Event(BaseModel):
     status: Status
     max_volunteers: int
     coins: int
+    description: str | None = None
+    keywords: list[str] | None = None
+    age_min: int | None = None
+    age_max: int | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     created_by: str
 
@@ -40,6 +44,10 @@ class CreateEventRequest(BaseModel):
     end_date_time: datetime
     max_volunteers: int
     coins: int
+    description: str | None = None
+    keywords: list[str] | None = None
+    age_min: int | None = None
+    age_max: int | None = None
 
 
 class UpdateEventStatusRequest(BaseModel):
@@ -50,5 +58,9 @@ class UpdateEventStatusRequest(BaseModel):
     start_date_time: datetime | None = None
     end_date_time: datetime | None = None
     coins: int | None = None
+    description: str | None = None
+    keywords: list[str] | None = None
+    age_min: int | None = None
+    age_max: int | None = None
 
     model_config = ConfigDict(use_enum_values=True, from_attributes=True)
