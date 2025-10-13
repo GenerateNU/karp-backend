@@ -10,6 +10,7 @@ from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStat
 from app.schemas.data_types import Location
 from app.services.event import EventService
 from app.services.volunteer import VolunteerService
+from app.services.registration import RegistrationService
 from app.models.volunteer import volunteer_model
 from app.models.user import user_model
 
@@ -18,6 +19,7 @@ class EventModel:
     def __init__(self):
         self.event_service = EventService()
         self.volunteer_service = VolunteerService()
+        self.registration_service = RegistrationService()
         self.collection: AsyncIOMotorCollection = db["events"]
 
     async def create_event(self, event: CreateEventRequest, user_id: str) -> Event:
@@ -76,21 +78,10 @@ class EventModel:
             event_data.update(updated_data)
 
             if event_data["status"] == Status.COMPLETED:
-                await self.update_event_status_completed(event_data)
+                await self.registration_service.update_not_checked_out_volunteers(event_id)
 
             return self.to_event(event_data)
         raise HTTPException(status_code=404, detail="No event with this ID was found")
-
-    async def update_event_status_completed(self, event: Event) -> None:
-        duration = event["end_date_time"] - event["start_date_time"]
-        exp = duration.total_seconds() / 36  # 3600 seconds in an hour * 100 exp per hour
-        volunteers = await volunteer_model.get_volunteers_by_event(event["id"])
-        for volunteer in volunteers:
-            await volunteer_model.update_volunteer(volunteer["id"], {"exp": volunteer["exp"] + exp})
-            await volunteer_model.update_volunteer(
-                volunteer["id"], {"coins": volunteer["coins"] + event["coins"]}
-            )
-            await self.volunteer_service.check_level_up(volunteer)
 
     async def delete_event_by_id(self, event_id: str) -> None:
         event = await self.collection.find_one({"_id": ObjectId(event_id)})

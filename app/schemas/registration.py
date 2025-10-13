@@ -17,8 +17,8 @@ class Registration(BaseModel):
     volunteer_id: str
     registered_at: datetime
     registration_status: RegistrationStatus
-    clocked_in: bool
-    clocked_out: bool
+    clocked_in: datetime | None
+    clocked_out: datetime | None
 
     class Config:
         from_attributes = True
