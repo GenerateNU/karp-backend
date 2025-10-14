@@ -136,5 +136,5 @@ async def clear_event_by_id(
             detail="You must be associated with an organization to delete an event",
         )
 
-    await event_service.authorize_org(event_id, current_user.id)
+    await event_service.authorize_org(event_id, current_user.entity_id)
     return await event_model.delete_event_by_id(event_id)

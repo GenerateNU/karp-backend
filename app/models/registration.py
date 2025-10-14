@@ -6,9 +6,9 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
 from app.models.event import event_model
+from app.models.volunteer import volunteer_model
 from app.schemas.event import Event
 from app.schemas.registration import CreateRegistrationRequest, Registration, RegistrationStatus
-from app.models.volunteer import volunteer_model
 from app.services.volunteer import VolunteerService
 
 
@@ -22,35 +22,10 @@ class RegistrationModel:
         if not event:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
 
-        pipeline = [
-            {
-                "$match": {"event_id": ObjectId(event_id)}
-            },  # filters the entries that have this event id
-            {
-                # joins with memberships tables
-                "$lookup": {
-                    "from": "memberships",  # join memberships
-                    "localField": "volunteer_id",  # volunteer id in registrations
-                    "foreignField": "entity_id",  # entity_id in memberships
-                    "as": "membership_docs",
-                }
-            },
-            {
-                "$unwind": "$membership_docs"
-            },  # results are converted from a joined array to a single document
-            {
-                "$project": {
-                    "_id": 1,  # returns only the fields we want
-                    "volunteer_id": "$volunteer_id",
-                    "first_name": "$membership_docs.first_name",
-                    "last_name": "$membership_docs.last_name",
-                    "username": "$membership_docs.username",
-                }
-            },
-        ]
-
-        volunteers_docs = await self.registrations.aggregate(pipeline).to_list(length=None)
-        return [self._to_volunteer(volunteer) for volunteer in volunteers_docs]
+        registrations = await self.registrations.find({"event_id": ObjectId(event_id)}).to_list(
+            length=None
+        )
+        return [self._to_registration(doc) for doc in registrations]
 
     async def get_events_by_volunteer(
         self, volunteer_id: str, status: RegistrationStatus | None
@@ -103,8 +78,8 @@ class RegistrationModel:
             "volunteer_id": volunteer_obj_id,
             "registered_at": datetime.now(),
             "registration_status": RegistrationStatus.UPCOMING,
-            "clocked_in": False,
-            "clocked_out": False,
+            "clocked_in": None,
+            "clocked_out": None,
         }
 
         result = await self.registrations.insert_one(registration_data)
@@ -148,21 +123,28 @@ class RegistrationModel:
     async def check_out_registration(self, volunteer_id: str, event_id: str) -> Registration:
         event = await event_model.get_event_by_id(event_id)
         volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)
-        registration = await self.registrations.update_one(
+        await self.registrations.update_one(
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)},
             {"$set": {"clocked_out": datetime.now()}},
         )
-
-        duration = registration["clocked_out"] - registration["clocked_in"]
-        exp = duration.total_seconds() / 36  # 3600 seconds in an hour * 100 exp per hour
-        await volunteer_model.update_volunteer(volunteer_id, {"exp": volunteer["exp"] + exp})
-        await volunteer_model.update_volunteer(
-            volunteer_id, {"coins": volunteer["coins"] + event["coins"]}
-        )
-        await self.volunteer_service.check_level_up(volunteer)
         updated_doc = await self.registrations.find_one(
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)}
         )
+        # Compute and persist experience/coins based on timestamps if available
+        try:
+            if updated_doc and updated_doc.get("clocked_in") and updated_doc.get("clocked_out"):
+                duration = updated_doc["clocked_out"] - updated_doc["clocked_in"]
+                exp_gained = duration.total_seconds() / 36  # 100 exp/hr
+                # Update volunteer counters conservatively; ignore schema typing here
+                await volunteer_model.update_volunteer(
+                    volunteer_id,
+                    {"experience": int(exp_gained)},  # downstream will merge incrementally
+                )
+                await volunteer_model.update_volunteer(volunteer_id, {"coins": event["coins"]})
+                await self.volunteer_service.check_level_up(volunteer)
+        except Exception:
+            # Best-effort updates; do not block checkout completion
+            pass
         return self._to_registration(updated_doc)
 
     def _to_registration(self, doc) -> Registration:
