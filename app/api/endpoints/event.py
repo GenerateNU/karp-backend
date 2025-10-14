@@ -4,13 +4,13 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.api.endpoints.user import get_current_user
 from app.models.event import event_model
-from app.schemas.data_types import Location
+from app.schemas.data_types import Location, Status
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
 from app.schemas.user import User, UserType
-from app.services.event import EventService
+from app.services.event import event_service
+from app.services.registration import registration_service
 
 router = APIRouter()
-event_service = EventService()
 
 
 @router.get("/all", response_model=list[Event])
@@ -117,6 +117,10 @@ async def update_event_status(
 
     await event_service.authorize_org(event_id, current_user.entity_id)
     updated_event = await event_model.update_event_status(event_id, event)
+
+    if updated_event.status == Status.COMPLETED:
+        await registration_service.update_not_checked_out_volunteers(event_id)
+
     return updated_event
 
 

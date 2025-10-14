@@ -1,8 +1,9 @@
 from fastapi import HTTPException, status
-from app.schemas.event import Event
-from app.schemas.data_types import Location
-from app.core.config import settings
 from httpx import AsyncClient
+
+from app.core.config import settings
+from app.schemas.data_types import Location
+from app.schemas.event import Event
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
@@ -41,3 +42,6 @@ class EventService:
         loc = data["results"][0]["geometry"]["location"]
         # Return your schema type
         return Location(type="Point", coordinates=[loc["lng"], loc["lat"]])
+
+
+event_service = EventService()

@@ -1,23 +1,21 @@
-from app.models.volunteer import VolunteerModel
+from app.models.volunteer import volunteer_model
 from app.schemas.volunteer import Volunteer
-from app.services.volunteer_achievements import VolunteerAchievementsService
+from app.services.volunteer_achievements import volunteer_achievements_service
 
 
 class VolunteerService:
 
-    def __init__(self, model=VolunteerModel):
-        self.model = model
-
+    def __init__(self):
         self.base_xp = 100
         self.growth_factor = 1.15
-        self.volunteer_achievements_service = VolunteerAchievementsService()
+        self.volunteer_achievements_service = volunteer_achievements_service
 
     async def check_level_up(self, volunteer: Volunteer) -> None:
         current_exp = volunteer["exp"]
         new_level = self._compute_level_from_exp(current_exp)
 
         if new_level != volunteer["level"]:
-            await self.model.update_volunteer(volunteer["id"], {"level": new_level})
+            await volunteer_model.update_volunteer(volunteer["id"], {"level": new_level})
             await self.volunteer_achievements_service.add_level_up_achievement(
                 volunteer["id"], new_level
             )
@@ -33,3 +31,6 @@ class VolunteerService:
             if required_for_next <= 0:
                 required_for_next = self.base_xp
         return level
+
+
+volunteer_service = VolunteerService()

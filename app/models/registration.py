@@ -6,16 +6,14 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
 from app.models.event import event_model
+from app.models.volunteer import volunteer_model
 from app.schemas.event import Event
 from app.schemas.registration import CreateRegistrationRequest, Registration, RegistrationStatus
-from app.models.volunteer import volunteer_model
-from app.services.volunteer import VolunteerService
 
 
 class RegistrationModel:
     def __init__(self):
         self.registrations: AsyncIOMotorCollection = db["registrations"]
-        self.volunteer_service = VolunteerService()
 
     async def get_volunteers_by_event(self, event_id: str) -> list[Registration]:
         event = await event_model.get_event_by_id(event_id)

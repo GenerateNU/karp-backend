@@ -7,10 +7,9 @@ from app.core.enums import SortOrder
 from app.models.item import ItemSortParam, item_model
 from app.schemas.item import CreateItemRequest, Item, UpdateItemRequest
 from app.schemas.user import User, UserType
-from app.services.item import ItemService
+from app.services.item import item_service
 
 router = APIRouter()
-item_service = ItemService(item_model)
 
 
 @router.post("/new", response_model=Item)

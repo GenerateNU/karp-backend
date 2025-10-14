@@ -7,11 +7,11 @@ from app.schemas.user import User, UserType
 
 
 class OrderService:
-    def __init__(self, model=order_model):
-        self.model = model
+    def __init__(self):
+        pass
 
     async def authorize_order_access(self, order_id: str, current_user: User) -> Order:
-        order = await self.model.get_order_by_id(order_id)
+        order = await order_model.get_order_by_id(order_id)
 
         if current_user.user_type == UserType.VOLUNTEER:
             if current_user.entity_id != order.volunteer_id:
@@ -30,3 +30,6 @@ class OrderService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
         return order
+
+
+order_service = OrderService()
