@@ -4,7 +4,6 @@ from bson import ObjectId
 from fastapi import HTTPException, status
 
 from app.database.mongodb import db
-from app.models.organization import org_model
 from app.models.user import user_model
 from app.schemas.organization import Organization
 from app.schemas.volunteer import (
@@ -108,7 +107,7 @@ class VolunteerModel:
         ]
         results = await self.collection.aggregate(pipeline).to_list()
 
-        return [org_model._to_organization(doc) for doc in results]
+        return [Organization(**doc) for doc in results]
 
     async def create_volunteer(self, volunteer: CreateVolunteerRequest, user_id: str) -> Volunteer:
         volunteer_data = volunteer.model_dump()

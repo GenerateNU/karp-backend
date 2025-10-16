@@ -1,6 +1,7 @@
 from enum import Enum
 
-from pydantic import BaseModel
+from bson import ObjectId
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
 class Status(str, Enum):
@@ -11,13 +12,20 @@ class Status(str, Enum):
 
 
 class Organization(BaseModel):
-    id: str
+    id: str = Field(validation_alias=AliasChoices("_id", "id"), serialization_alias="id")
     name: str
     description: str
     status: Status
 
     class Config:
         from_attributes = True
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def convert_object_id_to_str(cls, value):
+        if isinstance(value, ObjectId):
+            return str(value)
+        return value
 
 
 class CreateOrganizationRequest(BaseModel):
