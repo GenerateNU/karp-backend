@@ -17,6 +17,13 @@ from app.utils.user import verify_entity_association, verify_user_role
 router = APIRouter()
 
 
+@router.get("/me", response_model=Volunteer)
+async def get_self(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Volunteer:
+    return await volunteer_model.get_volunteer_by_id(current_user.entity_id)
+
+
 @router.get("/all", response_model=list[Volunteer])
 async def get_volunteers() -> list[Volunteer]:
     return await volunteer_model.get_all_volunteers()
