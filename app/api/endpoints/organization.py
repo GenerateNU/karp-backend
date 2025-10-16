@@ -15,6 +15,13 @@ from app.schemas.user import User, UserType
 router = APIRouter()
 
 
+@router.get("/me", response_model=Organization)
+async def get_self(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Organization:
+    return await org_model.get_organization_by_id(current_user.entity_id)
+
+
 @router.get("/all", response_model=list[Organization])
 async def get_organizations() -> list[Organization]:
     return await org_model.get_all_organizations()

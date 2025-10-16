@@ -9,6 +9,13 @@ from app.schemas.user import User, UserType
 router = APIRouter()
 
 
+@router.get("/me", response_model=Vendor)
+async def get_self(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Vendor:
+    return await vendor_model.get_vendor_by_id(current_user.entity_id)
+
+
 @router.post("/new", response_model=Vendor)
 async def create_vendor(
     vendor: Annotated[CreateVendorRequest, Body(...)],
