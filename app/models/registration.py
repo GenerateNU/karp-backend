@@ -25,7 +25,7 @@ class RegistrationModel:
         registrations = await self.registrations.find({"event_id": ObjectId(event_id)}).to_list(
             length=None
         )
-        return [self._to_registration(doc) for doc in registrations]
+        return [Registration(**doc) for doc in registrations]
 
     async def get_events_by_volunteer(
         self, volunteer_id: str, status: RegistrationStatus | None
@@ -71,7 +71,7 @@ class RegistrationModel:
                 },
             )
             updated_doc = await self.registrations.find_one({"_id": existing["_id"]})
-            return self._to_registration(updated_doc)
+            return Registration(**updated_doc)
 
         registration_data = {
             "event_id": event_obj_id,
@@ -85,7 +85,7 @@ class RegistrationModel:
         result = await self.registrations.insert_one(registration_data)
         inserted_doc = await self.registrations.find_one({"_id": result.inserted_id})
 
-        return self._to_registration(inserted_doc)
+        return Registration(**inserted_doc)
 
     async def unregister_registration(
         self, registration_id: str, volunteer_id: str
@@ -108,7 +108,7 @@ class RegistrationModel:
             {"$set": {"registration_status": RegistrationStatus.UNREGISTERED}},
         )
         updated_doc = await self.registrations.find_one({"_id": ObjectId(registration_id)})
-        return self._to_registration(updated_doc)
+        return Registration(**updated_doc)
 
     async def check_in_registration(self, volunteer_id: str, event_id: str) -> Registration:
         await self.registrations.update_one(
@@ -118,7 +118,7 @@ class RegistrationModel:
         updated_doc = await self.registrations.find_one(
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)}
         )
-        return self._to_registration(updated_doc)
+        return Registration(**updated_doc)
 
     async def check_out_registration(self, volunteer_id: str, event_id: str) -> Registration:
         event = await event_model.get_event_by_id(event_id)
@@ -147,12 +147,7 @@ class RegistrationModel:
             pass
         return self._to_registration(updated_doc)
 
-    def _to_registration(self, doc) -> Registration:
-        registration_data = doc.copy()
-        registration_data["id"] = str(registration_data["_id"])
-        registration_data["volunteer_id"] = str(registration_data["volunteer_id"])
-        registration_data["event_id"] = str(registration_data["event_id"])
-        return Registration(**registration_data)
+    # _to_registration no longer needed; ObjectId conversion handled by schema validators
 
 
 registration_model = RegistrationModel()

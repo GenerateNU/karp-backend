@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel
+from bson import ObjectId
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
 class RegistrationStatus(str, Enum):
@@ -12,7 +13,7 @@ class RegistrationStatus(str, Enum):
 
 
 class Registration(BaseModel):
-    id: str
+    id: str = Field(validation_alias=AliasChoices("_id", "id"), serialization_alias="id")
     event_id: str
     volunteer_id: str
     registered_at: datetime
@@ -22,6 +23,13 @@ class Registration(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_validator("id", "event_id", "volunteer_id", mode="before")
+    @classmethod
+    def convert_object_id_to_str(cls, value):
+        if isinstance(value, ObjectId):
+            return str(value)
+        return value
 
 
 class CreateRegistrationRequest(BaseModel):
