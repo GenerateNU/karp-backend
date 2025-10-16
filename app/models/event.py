@@ -111,12 +111,19 @@ class EventModel:
         q: str | None = None,
         sort_by: Literal["start_date_time", "name", "coins", "max_volunteers"] = "start_date_time",
         sort_dir: Literal["asc", "desc"] = "asc",
+        statuses: list[Status] | None = None,
         organization_id: str | None = None,
         age: int | None = None,
         page: int = 1,
         limit: int = 20,
     ) -> list[Event]:
         filters: dict = {}
+        if statuses:
+            filters_status = {"status": {"$in": list(statuses)}}
+            if filters:
+                filters = {"$and": [filters, filters_status]}
+            else:
+                filters = filters_status
 
         if organization_id:
             try:

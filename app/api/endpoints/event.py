@@ -4,7 +4,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.api.endpoints.user import get_current_user
 from app.models.event import event_model
-from app.schemas.data_types import Location
+from app.schemas.data_types import Location, Status
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
 from app.schemas.user import User, UserType
 from app.services.event import EventService
@@ -37,20 +37,24 @@ async def get_events_near(
 
 @router.get("/search", response_model=list[Event])
 async def search_events(
-    q: str | None = Query(None, description="Search term (name, description, keywords)"),
-    sort_by: Literal["start_date_time", "name", "coins", "max_volunteers"] = Query(
-        "start_date_time"
-    ),
-    sort_dir: Literal["asc", "desc"] = Query("asc"),
-    organization_id: str | None = Query(None),
-    age: int | None = Query(None, ge=0, description="User age for eligibility filtering"),
-    page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=200),
+    q: Annotated[str | None, Query(description="Search term (name, description, keywords)")] = None,
+    sort_by: Annotated[
+        Literal["start_date_time", "name", "coins", "max_volunteers"], Query()
+    ] = "start_date_time",
+    sort_dir: Annotated[Literal["asc", "desc"], Query()] = "asc",
+    statuses: Annotated[list[Status] | None, Query(description="Allowed event statuses")] = None,
+    organization_id: Annotated[str | None, Query()] = None,
+    age: Annotated[
+        int | None, Query(ge=0, description="User age for eligibility filtering")
+    ] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[Event]:
     return await event_model.search_events(
         q=q,
         sort_by=sort_by,
         sort_dir=sort_dir,
+        statuses=statuses,
         organization_id=organization_id,
         age=age,
         page=page,
