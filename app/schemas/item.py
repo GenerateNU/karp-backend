@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel
+from bson import ObjectId
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
 class Status(str, Enum):
@@ -14,13 +15,20 @@ class Status(str, Enum):
 
 
 class Item(BaseModel):
-    id: str
+    id: str = Field(validation_alias=AliasChoices("_id", "id"), serialization_alias="id")
     name: str
     status: Status
     vendor_id: str
     time_posted: datetime = datetime.now()
     expiration: datetime
     price: int
+
+    @field_validator("id", "vendor_id", mode="before")
+    @classmethod
+    def convert_object_id_to_str(cls, value):
+        if isinstance(value, ObjectId):
+            return str(value)
+        return value
 
     class Config:
         from_attributes = True

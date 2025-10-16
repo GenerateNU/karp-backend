@@ -25,12 +25,12 @@ class ItemModel:
         result = await self.collection.insert_one(item_data)
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
 
-        return self.to_item(inserted_doc)
+        return Item(**inserted_doc)
 
     async def get_all_items(self) -> list[Item]:
         items_list = await self.collection.find().to_list(length=None)
 
-        return [self.to_item(item) for item in items_list]
+        return [Item(**item) for item in items_list]
 
     async def get_items(
         self,
@@ -60,7 +60,7 @@ class ItemModel:
         else:
             items_list = await self.collection.find(query).to_list()
 
-        return [self.to_item(item) for item in items_list]
+        return [Item(**item) for item in items_list]
 
     async def get_item(self, item_id: str) -> Item | None:
         item_obj_id = parse_object_id(item_id)
@@ -70,7 +70,7 @@ class ItemModel:
         if item is None:
             raise HTTPException(status_code=404, detail="Item does not exist!")
 
-        return self.to_item(item)
+        return Item(**item)
 
     async def deactivate_item(self, item_id: str) -> None:
         item_obj_id = parse_object_id(item_id)
@@ -102,13 +102,6 @@ class ItemModel:
 
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Item not found")
-
-    # converting id and vendor_id to str to display all item fields
-    def to_item(self, doc) -> Item:
-        item_data = doc.copy()
-        item_data["id"] = str(item_data["_id"])
-        item_data["vendor_id"] = str(item_data["vendor_id"])
-        return Item(**item_data)
 
 
 item_model = ItemModel()
