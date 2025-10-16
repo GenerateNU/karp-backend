@@ -48,7 +48,7 @@ class RegistrationModel:
             {"$replaceRoot": {"newRoot": "$event_docs"}},
         ]
         event_docs = await self.registrations.aggregate(pipeline).to_list(length=None)
-        return [event_model.to_event(event) for event in event_docs]
+        return [Event(**event) for event in event_docs]
 
     async def create_registration(
         self, registration: CreateRegistrationRequest, volunteer_id: str

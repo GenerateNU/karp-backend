@@ -44,22 +44,22 @@ class EventModel:
         result = await self.collection.insert_one(event_data)
         event_data["_id"] = result.inserted_id
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
-        return self.to_event(inserted_doc)
+        return Event(**inserted_doc)
 
     async def get_all_events(self) -> list[Event]:
         events_list = await self.collection.find().to_list(length=None)
-        return [self.to_event(event) for event in events_list]
+        return [Event(**event) for event in events_list]
 
     async def get_events_by_location(self, distance: float, location: Location) -> list[Event]:
         events_list = await self.collection.find(
             {"location": {"$near": {"$geometry": location.model_dump(), "$maxDistance": distance}}}
         ).to_list(length=None)
-        return [self.to_event(event) for event in events_list]
+        return [Event(**event) for event in events_list]
 
     async def get_event_by_id(self, event_id: str) -> Event | None:
         event_data = await self.collection.find_one({"_id": ObjectId(event_id)})
         if event_data:
-            return self.to_event(event_data)
+            return Event(**event_data)
 
         raise HTTPException(status_code=404, detail="No event with this ID was found")
 
@@ -83,7 +83,7 @@ class EventModel:
             # if event_data["status"] == Status.COMPLETED:
             #     await self.registration_service.update_not_checked_out_volunteers(event_id)
 
-            return self.to_event(event_data)
+            return Event(**event_data)
         raise HTTPException(status_code=404, detail="No event with this ID was found")
 
     async def delete_event_by_id(self, event_id: str) -> None:
@@ -105,13 +105,6 @@ class EventModel:
 
     async def delete_all_events(self) -> None:
         await self.collection.update_many({}, {"$set": {"status": Status.DELETED}})
-
-    # converting id and org_id to str to display all event fields
-    def to_event(self, doc) -> Event:
-        event_data = doc.copy()
-        event_data["id"] = str(event_data["_id"])
-        event_data["organization_id"] = str(event_data["organization_id"])
-        return Event(**event_data)
 
     async def search_events(
         self,
@@ -176,7 +169,7 @@ class EventModel:
             .limit(max(1, min(200, limit)))
         )
         docs = await cursor.to_list(length=None)
-        return [self.to_event(d) for d in docs]
+        return [Event(**d) for d in docs]
 
 
 event_model = EventModel()

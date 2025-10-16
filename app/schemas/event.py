@@ -1,12 +1,14 @@
 from datetime import UTC, datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from bson import ObjectId
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.data_types import Location, Status
 
 
 class Event(BaseModel):
-    id: str
+    # Accepts input as `_id` or `id`, always serializes as `id` in responses
+    id: str = Field(validation_alias=AliasChoices("_id", "id"), serialization_alias="id")
     name: str
     address: str
     location: Location | None = None
@@ -29,6 +31,13 @@ class Event(BaseModel):
         populate_by_name=True,
         extra="ignore",
     )
+
+    @field_validator("id", "organization_id", mode="before")
+    @classmethod
+    def convert_object_id_to_str(cls, value):
+        if isinstance(value, ObjectId):
+            return str(value)
+        return value
 
 
 class CreateEventRequest(BaseModel):
