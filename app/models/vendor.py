@@ -16,7 +16,8 @@ class VendorModel:
 
         await user_model.update_entity_id_by_id(user_id, str(result.inserted_id))
 
-        return Vendor(**vendor_data)
+        inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
+        return Vendor(**inserted_doc)
 
     async def get_all_vendors(self) -> list[Vendor]:
         vendors_list = await self.collection.find().to_list(length=None)
@@ -28,18 +29,13 @@ class VendorModel:
         await self.collection.update_one({"_id": ObjectId(vendor_id)}, {"$set": vendor_data})
 
         updated_doc = await self.collection.find_one({"_id": ObjectId(vendor_id)})
-        return self._to_vendor(updated_doc)
+        return Vendor(**updated_doc)
 
     async def approve_vendor(self, vendor_id: str) -> None:
         await self.collection.update_one({"_id": vendor_id}, {"$set": {"approved": True}})
 
     async def delete_all_vendors(self) -> None:
         await self.collection.delete_many({})
-
-    def _to_vendor(self, doc) -> Vendor:
-        vendor_data = doc.copy()
-        vendor_data["id"] = str(vendor_data["_id"])
-        return Vendor(**vendor_data)
 
 
 vendor_model = VendorModel()

@@ -1,7 +1,8 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel
+from bson import ObjectId
+from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
 class VendorStatus(str, Enum):
@@ -12,7 +13,11 @@ class VendorStatus(str, Enum):
 
 
 class Vendor(BaseModel):
-    id: str | None = None
+    id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("_id", "id"),
+        serialization_alias="id",
+    )
     name: str
     business_type: str
     status: VendorStatus = VendorStatus.IN_REVIEW
@@ -22,6 +27,13 @@ class Vendor(BaseModel):
 
     class Config:
         from_attributes = True
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def convert_object_id_to_str(cls, value):
+        if isinstance(value, ObjectId):
+            return str(value)
+        return value
 
 
 class CreateVendorRequest(BaseModel):

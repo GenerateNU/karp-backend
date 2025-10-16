@@ -147,7 +147,5 @@ class RegistrationModel:
             pass
         return self._to_registration(updated_doc)
 
-    # _to_registration no longer needed; ObjectId conversion handled by schema validators
-
 
 registration_model = RegistrationModel()
