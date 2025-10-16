@@ -10,6 +10,12 @@ class VendorModel:
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["vendors"]
 
+    async def get_vendor_by_id(self, vendor_id: str) -> Vendor | None:
+        vendor_data = await self.collection.find_one({"_id": ObjectId(vendor_id)})
+        if vendor_data:
+            return Vendor(**vendor_data)
+        return None
+
     async def create_vendor(self, vendor: CreateVendorRequest, user_id: str) -> Vendor:
         vendor_data = vendor.model_dump()
         result = await self.collection.insert_one(Vendor(**vendor_data).model_dump())
