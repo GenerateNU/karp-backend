@@ -1,12 +1,12 @@
 from datetime import UTC, datetime
 
-from bson import ObjectId
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-from app.schemas.data_types import Status, Location
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.schemas.data_types import Location, Status
 
 
 class Event(BaseModel):
-    id: str | None = Field(default=None, alias="_id")
+    id: str
     name: str
     address: str
     location: Location | None = None
@@ -29,12 +29,6 @@ class Event(BaseModel):
         populate_by_name=True,
         extra="ignore",
     )
-
-    @model_validator(mode="before")
-    def _convert_objectid(cls, data: dict):
-        if data and "_id" in data and isinstance(data["_id"], ObjectId):
-            data["_id"] = str(data["_id"])
-        return data
 
 
 class CreateEventRequest(BaseModel):
