@@ -27,7 +27,7 @@ class EventModel:
     async def create_event(self, event: CreateEventRequest, user_id: str) -> Event:
         event_data = event.model_dump(mode="json", by_alias=True, exclude={"_id", "id"})
 
-        event_data["status"] = Status.DRAFT
+        event_data["status"] = Status.PUBLISHED
         # Get the organization entity_id associated with this user
         user = await user_model.get_by_id(user_id)
         if not user or not user.entity_id:
