@@ -6,8 +6,10 @@ from app.api.endpoints.user import get_current_user
 from app.models.event import event_model
 from app.schemas.data_types import Location, Status
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
+from app.schemas.s3 import PresignedUrlResponse
 from app.schemas.user import User, UserType
 from app.services.event import EventService
+from app.services.s3 import s3_service
 
 router = APIRouter()
 event_service = EventService()
@@ -142,3 +144,37 @@ async def clear_event_by_id(
 
     await event_service.authorize_org(event_id, current_user.entity_id)
     return await event_model.delete_event_by_id(event_id)
+
+
+# Generate a pre-signed URL for an event image and store the S3 key in MongoDB
+@router.get("/{event_id}/upload-url", response_model=PresignedUrlResponse)
+async def get_event_upload_url(
+    event_id: str, filename: str, current_user: Annotated[User, Depends(get_current_user)]
+):
+    # Generate a unique S3 filename
+    s3_key = f"events/{event_id}/{filename}"
+
+    if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only users with organization role can upload an event image",
+        )
+
+    if current_user.entity_id is None and current_user.user_type != UserType.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You must be associated with an organization to upload an event image",
+        )
+
+    # Update the MongoDB document with the S3 key
+    updated = await event_service.update_event_image(event_id, filename, current_user.entity_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    # Generate the pre-signed URL
+    presigned_data = s3_service.generate_presigned_url(s3_key)
+
+    return PresignedUrlResponse(
+        upload_url=presigned_data,
+        file_url=s3_key,
+    )
