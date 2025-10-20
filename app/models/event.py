@@ -37,9 +37,8 @@ class EventModel:
         event_data["organization_id"] = user.entity_id
         event_data["created_at"] = datetime.now(UTC)
         event_data["created_by"] = user_id
-        # coordinates = await event_service.location_to_coordinates(event_data["address"])
-        # event_data["location"] = coordinates.model_dump()
-        # will uncomment when we get the google maps key
+        coordinates = await self.event_service.location_to_coordinates(event_data["address"])
+        event_data["location"] = coordinates.model_dump()
 
         result = await self.collection.insert_one(event_data)
         event_data["_id"] = result.inserted_id

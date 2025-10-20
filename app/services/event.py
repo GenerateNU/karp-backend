@@ -39,5 +39,5 @@ class EventService:
         if data.get("status") != "OK" or not data.get("results"):
             raise HTTPException(status_code=400, detail=f"Geocoding failed: {data.get('status')}")
         loc = data["results"][0]["geometry"]["location"]
-        # Return your schema type
+
         return Location(type="Point", coordinates=[loc["lng"], loc["lat"]])
