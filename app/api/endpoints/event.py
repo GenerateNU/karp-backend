@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -10,6 +11,9 @@ from app.schemas.s3 import PresignedUrlResponse
 from app.schemas.user import User, UserType
 from app.services.event import EventService
 from app.services.s3 import s3_service
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 event_service = EventService()
@@ -52,7 +56,8 @@ async def search_events(
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[Event]:
-    return await event_model.search_events(
+    logger.info("hetyyyyyy")
+    returned_events = await event_model.search_events(
         q=q,
         sort_by=sort_by,
         sort_dir=sort_dir,
@@ -62,6 +67,8 @@ async def search_events(
         page=page,
         limit=limit,
     )
+    logger.info(f"Found {len(returned_events)} events matching search criteria")
+    return returned_events
 
 
 @router.post("/new", response_model=Event)
@@ -149,10 +156,14 @@ async def clear_event_by_id(
 # Generate a pre-signed URL for an event image and store the S3 key in MongoDB
 @router.get("/{event_id}/upload-url", response_model=PresignedUrlResponse)
 async def get_event_upload_url(
-    event_id: str, filename: str, current_user: Annotated[User, Depends(get_current_user)]
+    event_id: str,
+    filename: str,
+    filetype: str,
+    current_user: Annotated[User, Depends(get_current_user)],
 ):
     # Generate a unique S3 filename
     s3_key = f"events/{event_id}/{filename}"
+    print(s3_key)
 
     if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
         raise HTTPException(
@@ -167,14 +178,26 @@ async def get_event_upload_url(
         )
 
     # Update the MongoDB document with the S3 key
-    updated = await event_service.update_event_image(event_id, filename, current_user.entity_id)
+    updated = await event_service.update_event_image(event_id, s3_key, current_user.entity_id)
     if not updated:
         raise HTTPException(status_code=404, detail="Event not found")
 
     # Generate the pre-signed URL
-    presigned_data = s3_service.generate_presigned_url(s3_key)
+    presigned_data = s3_service.generate_presigned_url(s3_key, content_type=filetype)
 
     return PresignedUrlResponse(
         upload_url=presigned_data,
         file_url=s3_key,
     )
+
+
+@router.get("/{event_id}/image")
+async def get_event_image(event_id: str):
+    event = await event_service.get_event_by_id(event_id)
+    if not event.image_s3_key:
+        raise HTTPException(status_code=404, detail="Image not found")
+    file_type = event.image_s3_key.substring(event.image_s3_key.lastIndexOf(".") + 1)
+    presigned_url = s3_service.generate_presigned_url(
+        event.image_s3_key, content_type=f"image/{file_type}"
+    )
+    return {"url": presigned_url}

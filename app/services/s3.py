@@ -32,7 +32,8 @@ class S3Service:
     ) -> str:
         mod_filename = self.make_safe_filename(filename)
         params = {"Bucket": self.BUCKET_NAME, "Key": mod_filename}
-
+        params["ContentType"] = content_type
+        print(params["ContentType"])
         try:
             url = self.s3_client.generate_presigned_url(
                 "put_object", Params=params, ExpiresIn=expires_in
