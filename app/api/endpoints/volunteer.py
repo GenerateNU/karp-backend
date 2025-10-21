@@ -21,7 +21,12 @@ router = APIRouter()
 async def get_self(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> Volunteer:
-    return await volunteer_model.get_volunteer_by_id(current_user.entity_id)
+    volunteer = await volunteer_model.get_volunteer_by_id(current_user.entity_id)
+
+    if not volunteer:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
+
+    return volunteer
 
 
 @router.get("/all", response_model=list[Volunteer])

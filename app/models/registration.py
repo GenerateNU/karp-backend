@@ -9,13 +9,11 @@ from app.models.event import event_model
 from app.models.volunteer import volunteer_model
 from app.schemas.event import Event
 from app.schemas.registration import CreateRegistrationRequest, Registration, RegistrationStatus
-from app.services.volunteer import VolunteerService
 
 
 class RegistrationModel:
     def __init__(self):
         self.registrations: AsyncIOMotorCollection = db["registrations"]
-        self.volunteer_service = VolunteerService()
 
     async def get_volunteers_by_event(self, event_id: str) -> list[Registration]:
         event = await event_model.get_event_by_id(event_id)
@@ -121,8 +119,6 @@ class RegistrationModel:
         return Registration(**updated_doc)
 
     async def check_out_registration(self, volunteer_id: str, event_id: str) -> Registration:
-        event = await event_model.get_event_by_id(event_id)
-        volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)
         await self.registrations.update_one(
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)},
             {"$set": {"clocked_out": datetime.now()}},
@@ -130,22 +126,7 @@ class RegistrationModel:
         updated_doc = await self.registrations.find_one(
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)}
         )
-        # Compute and persist experience/coins based on timestamps if available
-        try:
-            if updated_doc and updated_doc.get("clocked_in") and updated_doc.get("clocked_out"):
-                duration = updated_doc["clocked_out"] - updated_doc["clocked_in"]
-                exp_gained = duration.total_seconds() / 36  # 100 exp/hr
-                # Update volunteer counters conservatively; ignore schema typing here
-                await volunteer_model.update_volunteer(
-                    volunteer_id,
-                    {"experience": int(exp_gained)},  # downstream will merge incrementally
-                )
-                await volunteer_model.update_volunteer(volunteer_id, {"coins": event["coins"]})
-                await self.volunteer_service.check_level_up(volunteer)
-        except Exception:
-            # Best-effort updates; do not block checkout completion
-            pass
-        return self._to_registration(updated_doc)
+        return Registration(**updated_doc)
 
 
 registration_model = RegistrationModel()

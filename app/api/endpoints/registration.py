@@ -5,12 +5,14 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from app.api.endpoints.user import get_current_user
 from app.models.registration import registration_model
 from app.models.volunteer import volunteer_model
+from app.models.event import event_model
 from app.schemas.event import Event
 from app.schemas.registration import CreateRegistrationRequest, Registration, RegistrationStatus
 from app.schemas.user import User, UserType
+from app.services.volunteer import VolunteerService
 
 router = APIRouter()
-
+volunteer_service = VolunteerService()
 
 # do we want to make this partiful s.t. only volunteers signed up for the event can see who going?
 @router.get("/event-volunteers/{event_id}", response_model=list[Registration])
@@ -80,6 +82,7 @@ async def unregister_registration(
 
     return await registration_model.unregister_registration(registration_id, current_user.entity_id)
 
+
 @router.put("/check-in/{volunteer_id}", response_model=Registration)
 async def check_in_registration(
     event_id: str,
@@ -99,6 +102,7 @@ async def check_in_registration(
 
     return await registration_model.check_in_registration(volunteer_id, event_id)
 
+
 @router.put("/check-out/{volunteer_id}", response_model=Registration)
 async def check_out_registration(
     event_id: str,
@@ -116,4 +120,8 @@ async def check_out_registration(
     if not volunteer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
 
-    return await registration_model.check_out_registration(volunteer_id, event_id)
+    event = await event_model.get_event_by_id(event_id)
+    registration = await registration_model.check_out_registration(volunteer_id, event_id)
+    await volunteer_service.handle_volunteer_checkout_rewards(registration, volunteer_id, event, volunteer)
+
+    return registration

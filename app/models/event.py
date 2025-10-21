@@ -6,12 +6,9 @@ from fastapi import HTTPException
 
 from app.database.mongodb import db
 from app.models.user import user_model
-
-# from app.services.registration import RegistrationService
 from app.schemas.data_types import Location
 from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStatusRequest
-from app.services.event import EventService
-from app.services.volunteer import VolunteerService
+
 
 if TYPE_CHECKING:
     from motor.motor_asyncio import AsyncIOMotorCollection
@@ -19,12 +16,11 @@ if TYPE_CHECKING:
 
 class EventModel:
     def __init__(self):
-        self.event_service = EventService()
-        self.volunteer_service = VolunteerService()
-        # self.registration_service = RegistrationService()
         self.collection: AsyncIOMotorCollection = db["events"]
 
-    async def create_event(self, event: CreateEventRequest, user_id: str) -> Event:
+    async def create_event(
+        self, event: CreateEventRequest, user_id: str, location: Location
+    ) -> Event:
         event_data = event.model_dump(mode="json", by_alias=True, exclude={"_id", "id"})
 
         event_data["status"] = Status.PUBLISHED
@@ -37,8 +33,7 @@ class EventModel:
         event_data["organization_id"] = user.entity_id
         event_data["created_at"] = datetime.now(UTC)
         event_data["created_by"] = user_id
-        coordinates = await self.event_service.location_to_coordinates(event_data["address"])
-        event_data["location"] = coordinates.model_dump()
+        event_data["location"] = location.model_dump()
 
         result = await self.collection.insert_one(event_data)
         event_data["_id"] = result.inserted_id
@@ -46,7 +41,7 @@ class EventModel:
         return Event(**inserted_doc)
 
     async def get_all_events(self) -> list[Event]:
-        events_list = await self.collection.find().to_list(length=None)
+        events_list = await self.collection.find({"status": Status.PUBLISHED}).to_list(length=None)
         return [Event(**event) for event in events_list]
 
     async def get_events_by_location(self, distance: float, location: Location) -> list[Event]:

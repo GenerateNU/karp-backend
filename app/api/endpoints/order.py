@@ -30,7 +30,9 @@ async def create_order(
             detail="You must be associated with a volunteer profile to place an order",
         )
 
-    await item_model.get_item(order.item_id)
+    # Validate order and process payment (deduct coins)
+    await order_service.validate_and_process_order(order.item_id, current_user.entity_id)
+
     return await order_model.create_order(order, current_user.entity_id)
 
 
