@@ -10,7 +10,6 @@ from app.api.endpoints import (
     order,
     organization,
     registration,
-    s3,
     user,
     vendor,
     volunteer,
@@ -60,5 +59,3 @@ app.include_router(
 app.include_router(registration.router, prefix="/registration", tags=["registration"])
 
 app.include_router(order.router, prefix="/order", tags=["order"])
-
-app.include_router(s3.router, prefix="/s3", tags=["s3"])

@@ -56,7 +56,6 @@ async def search_events(
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[Event]:
-    logger.info("hetyyyyyy")
     returned_events = await event_model.search_events(
         q=q,
         sort_by=sort_by,
@@ -67,7 +66,6 @@ async def search_events(
         page=page,
         limit=limit,
     )
-    logger.info(f"Found {len(returned_events)} events matching search criteria")
     return returned_events
 
 
@@ -103,9 +101,12 @@ async def clear_events(
     return await event_model.delete_all_events()
 
 
-@router.get("/{event_id}", response_model=Event | None)
-async def get_event_by_id(event_id: str) -> Event | None:
+@router.get("/{event_id}", response_model=Event)
+async def get_event_by_id(event_id: str) -> Event:
     event = await event_model.get_event_by_id(event_id)
+
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
     return event
 
 
@@ -161,9 +162,6 @@ async def get_event_upload_url(
     filetype: str,
     current_user: Annotated[User, Depends(get_current_user)],
 ):
-    # Generate a unique S3 filename
-    s3_key = f"events/{event_id}/{filename}"
-    print(s3_key)
 
     if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
         raise HTTPException(
@@ -177,27 +175,30 @@ async def get_event_upload_url(
             detail="You must be associated with an organization to upload an event image",
         )
 
+    # Generate the pre-signed URL
+    url, new_s3_key = s3_service.generate_presigned_url(
+        filename, content_type=filetype, dir_prefix=f"events/{event_id}"
+    )
+
     # Update the MongoDB document with the S3 key
-    updated = await event_service.update_event_image(event_id, s3_key, current_user.entity_id)
+    updated = await event_service.update_event_image(event_id, new_s3_key, current_user.entity_id)
     if not updated:
         raise HTTPException(status_code=404, detail="Event not found")
 
-    # Generate the pre-signed URL
-    presigned_data = s3_service.generate_presigned_url(s3_key, content_type=filetype)
-
     return PresignedUrlResponse(
-        upload_url=presigned_data,
-        file_url=s3_key,
+        upload_url=url,
+        file_url=new_s3_key,
     )
 
 
+# Get an event image via a pre-signed URL
 @router.get("/{event_id}/image")
 async def get_event_image(event_id: str):
-    event = await event_service.get_event_by_id(event_id)
-    if not event.image_s3_key:
+    event = await event_model.get_event_by_id(event_id)
+    if not event:
         raise HTTPException(status_code=404, detail="Image not found")
-    file_type = event.image_s3_key.substring(event.image_s3_key.lastIndexOf(".") + 1)
-    presigned_url = s3_service.generate_presigned_url(
+    file_type = event.image_s3_key.split(".")[-1]
+    presigned_url = s3_service.get_presigned_url(
         event.image_s3_key, content_type=f"image/{file_type}"
     )
     return {"url": presigned_url}

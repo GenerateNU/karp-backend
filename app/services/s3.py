@@ -22,15 +22,16 @@ class S3Service:
     )
 
     # Create a safe filename with a UUID to avoid unsafe characters such as :, ?, &
-    def make_safe_filename(self, original_url: str) -> str:
+    def make_safe_filename(self, original_url: str, dir_prefix: str) -> str:
         ext = os.path.splitext(original_url)[1]  # try to keep file extension
-        return f"uploads/{uuid.uuid4()}{ext or '.png'}"
+        return f"{dir_prefix}/{uuid.uuid4()}{ext or '.png'}"
 
-    # Generate a pre-signed URL to upload to S3 (to upload directly to S3 from the frontend)
+    # Generate a pre-signed URL to upload image to S3 bucket
     def generate_presigned_url(
-        self, filename: str, content_type: str | None = None, expires_in: int = 3600
+        self, filename: str, content_type: str, dir_prefix: str, expires_in: int = 3600
     ) -> str:
-        mod_filename = self.make_safe_filename(filename)
+        mod_filename = self.make_safe_filename(filename, dir_prefix)
+        print(f"Modified filename: {mod_filename}")
         params = {"Bucket": self.BUCKET_NAME, "Key": mod_filename}
         params["ContentType"] = content_type
         print(params["ContentType"])
@@ -38,17 +39,24 @@ class S3Service:
             url = self.s3_client.generate_presigned_url(
                 "put_object", Params=params, ExpiresIn=expires_in
             )
-            return url
+            return url, mod_filename
         except ClientError as e:
             raise RuntimeError(f"Failed to generate pre-signed URL: {e}") from e
 
-    # Directly upload a file object to S3
-    def upload_file_to_s3(self, file, filename: str):
+    # Get a pre-signed URL to retrieve an image from S3 bucket
+    def get_presigned_url(
+        self, filename: str, content_type: str | None = None, expires_in: int = 3600
+    ) -> str:
+        params = {"Bucket": self.BUCKET_NAME, "Key": filename}
+        # params["ContentType"] = content_type
+        # print(params["ContentType"])
         try:
-            self.s3_client.upload_fileobj(file, self.BUCKET_NAME, filename)
-            return {"message": "File uploaded successfully!", "file_name": filename}
+            url = self.s3_client.generate_presigned_url(
+                "get_object", Params=params, ExpiresIn=expires_in
+            )
+            return url
         except ClientError as e:
-            raise RuntimeError(f"Failed to upload file: {e}") from e
+            raise RuntimeError(f"Failed to get pre-signed URL: {e}") from e
 
 
 s3_service = S3Service()
