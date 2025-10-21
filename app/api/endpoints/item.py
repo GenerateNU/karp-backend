@@ -3,9 +3,11 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from app.api.endpoints.user import get_current_user
+from app.models.vendor import vendor_model
 from app.core.enums import SortOrder
 from app.models.item import ItemSortParam, item_model
 from app.schemas.item import CreateItemRequest, Item, UpdateItemRequest
+from app.schemas.vendor import Status
 from app.schemas.user import User, UserType
 from app.services.item import ItemService
 
@@ -22,6 +24,13 @@ async def post_item(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only users with vendor role can create a item",
+        )
+
+    vendor = await vendor_model.get_vendor_by_id(current_user.entity_id)
+    if vendor.status != Status.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Your vendor is not approved to create items",
         )
 
     return await item_model.create_item(item, current_user.entity_id)
