@@ -5,19 +5,18 @@ from bson import ObjectId
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
-class Status(str, Enum):
+class ItemStatus(str, Enum):
     APPROVED = "APPROVED"
     IN_REVIEW = "IN_REVIEW"
     REJECTED = "REJECTED"
     DELETED = "DELETED"
     ACTIVE = "ACTIVE"
-    CLAIMED = "CLAIMED"
 
 
 class Item(BaseModel):
     id: str = Field(validation_alias=AliasChoices("_id", "id"), serialization_alias="id")
     name: str
-    status: Status
+    status: ItemStatus
     vendor_id: str
     time_posted: datetime = datetime.now()
     expiration: datetime
@@ -58,4 +57,4 @@ class UpdateItemRequest(BaseModel):
     name: str | None = None
     price: int | None = None
     expiration: datetime | None = None
-    status: Status | None = None
+    status: ItemStatus | None = None

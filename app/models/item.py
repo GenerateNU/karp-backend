@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.core.enums import SortOrder
 from app.database.mongodb import db
-from app.schemas.item import CreateItemRequest, Item, ItemSortParam, Status, UpdateItemRequest
+from app.schemas.item import CreateItemRequest, Item, ItemSortParam, ItemStatus, UpdateItemRequest
 from app.utils.object_id import parse_object_id
 
 
@@ -19,7 +19,7 @@ class ItemModel:
 
         item_data["time_posted"] = datetime.now()
         item_data["vendor_id"] = ObjectId(vendor_id)
-        item_data["status"] = Status.ACTIVE
+        item_data["status"] = ItemStatus.ACTIVE
         item_data["price"] = 30  # set to default 30 for now
 
         result = await self.collection.insert_one(item_data)
