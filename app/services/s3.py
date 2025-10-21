@@ -11,7 +11,7 @@ class S3Service:
     def __init__(self):
         pass
 
-    AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+    AWS_REGION = settings.AWS_REGION
     BUCKET_NAME = settings.AWS_S3_BUCKET_NAME
 
     s3_client = boto3.client(
@@ -31,10 +31,8 @@ class S3Service:
         self, filename: str, content_type: str, dir_prefix: str, expires_in: int = 3600
     ) -> str:
         mod_filename = self.make_safe_filename(filename, dir_prefix)
-        print(f"Modified filename: {mod_filename}")
         params = {"Bucket": self.BUCKET_NAME, "Key": mod_filename}
         params["ContentType"] = content_type
-        print(params["ContentType"])
         try:
             url = self.s3_client.generate_presigned_url(
                 "put_object", Params=params, ExpiresIn=expires_in
@@ -48,8 +46,6 @@ class S3Service:
         self, filename: str, content_type: str | None = None, expires_in: int = 3600
     ) -> str:
         params = {"Bucket": self.BUCKET_NAME, "Key": filename}
-        # params["ContentType"] = content_type
-        # print(params["ContentType"])
         try:
             url = self.s3_client.generate_presigned_url(
                 "get_object", Params=params, ExpiresIn=expires_in
