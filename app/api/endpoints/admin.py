@@ -17,6 +17,10 @@ from app.schemas.admin import (
     UpdateVendorRequest,
 )
 from app.schemas.user import User, UserType
+from app.schemas.organization import Status, UpdateOrganizationRequest
+from app.schemas.vendor import UpdateVendorRequest, VendorStatus
+from app.schemas.item import UpdateItemRequest
+from app.schemas.event import UpdateEventStatusRequest, Status as EventStatus
 
 router = APIRouter()
 
@@ -74,7 +78,6 @@ async def change_org_status(
         )
 
     # Update organization status
-    from app.schemas.organization import Status, UpdateOrganizationRequest
 
     update_data = UpdateOrganizationRequest(status=Status(approval_data.status))
     await org_model.update_organization(approval_data.organization_id, update_data)
@@ -90,9 +93,6 @@ async def change_vendor_status(
             status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can approve vendors"
         )
 
-    # Update vendor status
-    from app.schemas.vendor import UpdateVendorRequest, VendorStatus
-
     update_data = UpdateVendorRequest(status=VendorStatus(approval_data.status))
     await vendor_model.update_vendor(approval_data.vendor_id, update_data)
 
@@ -107,9 +107,6 @@ async def change_item_status(
             status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can approve items"
         )
 
-    # Update item status
-    from app.schemas.item import UpdateItemRequest
-
     update_data = UpdateItemRequest(status=approval_data.status)
     await item_model.update_item(update_data, approval_data.item_id)
 
@@ -123,10 +120,6 @@ async def change_event_status(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can approve events"
         )
-
-    # Update event status
-    from app.schemas.event import Status as EventStatus
-    from app.schemas.event import UpdateEventStatusRequest
 
     update_data = UpdateEventStatusRequest(status=EventStatus(approval_data.status))
     await event_model.update_event_status(approval_data.event_id, update_data)
