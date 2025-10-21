@@ -1,4 +1,5 @@
 from bson import ObjectId
+from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
@@ -20,9 +21,13 @@ class OrganizationModel:
 
         return [Organization(**org) for org in orgs_list]
 
-    async def get_organization_by_id(self, id: str) -> Organization | None:
+    async def get_organization_by_id(self, id: str) -> Organization:
         org = await self.collection.find_one({"_id": ObjectId(id), "status": Status.APPROVED})
 
+        if not org:
+            raise HTTPException(
+                status_code=404, detail="Organization not found or it is not approved"
+            )
         if org:
             return Organization(**org)
         return None

@@ -1,4 +1,5 @@
 from bson import ObjectId
+from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
@@ -10,8 +11,10 @@ class VendorModel:
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["vendors"]
 
-    async def get_vendor_by_id(self, vendor_id: str) -> Vendor | None:
+    async def get_vendor_by_id(self, vendor_id: str) -> Vendor:
         vendor_data = await self.collection.find_one({"_id": ObjectId(vendor_id)})
+        if not vendor_data:
+            raise HTTPException(status_code=404, detail="Vendor is not found or it is not approved")
         if vendor_data:
             return Vendor(**vendor_data)
         return None

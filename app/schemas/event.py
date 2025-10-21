@@ -24,6 +24,7 @@ class Event(BaseModel):
     age_max: int | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     created_by: str
+    image_s3_key: str | None = None
 
     model_config = ConfigDict(
         use_enum_values=True,
