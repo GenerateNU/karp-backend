@@ -41,7 +41,7 @@ class EventModel:
         return Event(**inserted_doc)
 
     async def get_all_events(self) -> list[Event]:
-        events_list = await self.collection.find().to_list(length=None)
+        events_list = await self.collection.find({"status": Status.PUBLISHED}).to_list(length=None)
         return [Event(**event) for event in events_list]
 
     async def get_events_by_location(self, distance: float, location: Location) -> list[Event]:
