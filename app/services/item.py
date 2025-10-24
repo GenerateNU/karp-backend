@@ -11,7 +11,7 @@ class ItemService:
 
     # ensure that only the vendor who created the item can modify it
     async def authorize_vendor(self, item_id: str, vendor_id: str) -> Item | None:
-        item = await self.model.get_item(item_id)
+        item = await self.model.get_item_by_id(item_id)
         if not item:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -22,3 +22,8 @@ class ItemService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to modify this item",
             )
+
+    async def update_item_image(self, item_id: str, s3_key: str, user_id: str) -> str:
+        await self.authorize_vendor(item_id, user_id)
+        updated = await item_model.update_item_image(item_id, s3_key)
+        return updated

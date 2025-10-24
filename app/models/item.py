@@ -62,7 +62,7 @@ class ItemModel:
 
         return [Item(**item) for item in items_list]
 
-    async def get_item(self, item_id: str) -> Item | None:
+    async def get_item_by_id(self, item_id: str) -> Item | None:
         item_obj_id = parse_object_id(item_id)
 
         item = await self.collection.find_one({"_id": item_obj_id})
@@ -102,6 +102,15 @@ class ItemModel:
 
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Item not found")
+
+    async def update_item_image(self, item_id: str, s3_key: str) -> str:
+        print(f"updating the item image: {s3_key}")
+        updated_event = await self.collection.update_one(
+            {"_id": ObjectId(item_id)}, {"$set": {"image_s3_key": s3_key}}
+        )
+        print(updated_event)
+        print("sucessfully updated item image s3 key in mongo")
+        return s3_key
 
 
 item_model = ItemModel()

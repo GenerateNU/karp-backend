@@ -11,6 +11,7 @@ class ItemStatus(str, Enum):
     REJECTED = "REJECTED"
     DELETED = "DELETED"
     ACTIVE = "ACTIVE"
+    CLAIMED = "CLAIMED"
 
 
 class Item(BaseModel):
@@ -21,6 +22,7 @@ class Item(BaseModel):
     time_posted: datetime = datetime.now()
     expiration: datetime
     price: int
+    image_s3_key: str | None = None
 
     @field_validator("id", "vendor_id", mode="before")
     @classmethod
