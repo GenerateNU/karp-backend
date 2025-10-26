@@ -13,13 +13,49 @@ class EventType(str, Enum):
     TUTORING = "Tutoring"
 
 
+class GradeLevel(str, Enum):
+    SIXTH_GRADE = "6th Grade"
+    SEVENTH_GRADE = "7th Grade"
+    EIGHTH_GRADE = "8th Grade"
+    NINTH_GRADE = "9th Grade"
+    TENTH_GRADE = "10th Grade"
+    ELEVENTH_GRADE = "11th Grade"
+    TWELFTH_GRADE = "12th Grade"
+    UNDERGRADUATE = "Undergraduate"
+    MASTERS = "Masters"
+    PHD = "PhD"
+
+
+class Qualification(str, Enum):
+    CPR_CERTIFIED = "CPR Certified"
+    ELDER_CARE = "Elder Care"
+    FOOD_DELIVERY = "Food Delivery/Distribution"
+    MULTILINGUAL = "Multilingual"
+    TUTORING = "Tutoring"
+    RESEARCH = "Research"
+    WRITING = "Writing/Journalism"
+
+
+class DayOfWeek(str, Enum):
+    MONDAY = "Monday"
+    TUESDAY = "Tuesday"
+    WEDNESDAY = "Wednesday"
+    THURSDAY = "Thursday"
+    FRIDAY = "Friday"
+    SATURDAY = "Saturday"
+    SUNDAY = "Sunday"
+
+
 class Volunteer(BaseModel):
     id: str
     first_name: str
     last_name: str
     age: int
     coins: int
+    grade_level: GradeLevel
     preferences: list[EventType]  # come back
+    qualifications: list[Qualification]
+    preferred_days: list[DayOfWeek]
     is_active: bool = True
     experience: int = 0
     location: Location
@@ -33,7 +69,10 @@ class CreateVolunteerRequest(BaseModel):
     last_name: str
     age: int
     coins: int
-    preferences: list[EventType]
+    grade_level: GradeLevel
+    preferences: list[EventType] = []
+    qualifications: list[Qualification] = []
+    preferred_days: list[DayOfWeek] = []
     location: Location
 
 
@@ -42,6 +81,9 @@ class UpdateVolunteerRequest(BaseModel):
     last_name: str | None = None
     age: int | None = None
     coins: int | None = None
+    grade_level: GradeLevel | None = None
     preferences: list[EventType] | None = None
+    qualifications: list[Qualification] | None = None
+    preferred_days: list[DayOfWeek] | None = None
     is_active: bool | None = None
     location: Location | None = None

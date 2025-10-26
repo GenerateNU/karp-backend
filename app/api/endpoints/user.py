@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from bson import ObjectId
@@ -145,6 +145,8 @@ async def create_user(payload: Annotated[CreateUserRequest, Body(...)]):
         "hashed_password": hashed_password,
         "first_name": payload.first_name,
         "last_name": payload.last_name,
+        "preferred_name": payload.preferred_name,
+        "birth_date": datetime.combine(payload.birth_date, datetime.min.time()),
         "user_type": payload.user_type,
     }
 

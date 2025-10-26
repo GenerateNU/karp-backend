@@ -1,3 +1,4 @@
+from datetime import date
 from enum import Enum
 
 from pydantic import BaseModel, EmailStr, Field
@@ -17,6 +18,8 @@ class User(BaseModel):
     hashed_password: str = Field(exclude=True)
     first_name: str
     last_name: str
+    preferred_name: str | None = None
+    birth_date: date
     user_type: UserType
     entity_id: str | None = None
 
@@ -47,6 +50,8 @@ class CreateUserRequest(BaseModel):
     password: str
     first_name: str
     last_name: str
+    preferred_name: str | None = None
+    birth_date: date
     user_type: UserType
 
 
