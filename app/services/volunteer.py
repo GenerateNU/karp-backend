@@ -49,4 +49,5 @@ class VolunteerService:
                 await self.model.update_volunteer(volunteer_id, {"coins": event["coins"]})
                 await self.check_level_up(volunteer)
         except Exception:
+            print("Error handling volunteer checkout rewards")
             pass
