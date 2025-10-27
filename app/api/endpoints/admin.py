@@ -18,7 +18,7 @@ from app.schemas.admin import (
 )
 from app.schemas.user import User, UserType
 from app.schemas.organization import Status, UpdateOrganizationRequest
-from app.schemas.vendor import UpdateVendorRequest, VendorStatus
+from app.schemas.vendor import VendorStatus
 from app.schemas.item import UpdateItemRequest
 from app.schemas.event import UpdateEventStatusRequest, Status as EventStatus
 
@@ -56,7 +56,7 @@ async def create_admin(
 
 @router.get("/all", response_model=list[AdminResponse])
 async def get_all_admins(
-    current_user: Annotated[User, Depends(get_current_user)]
+    current_user: Annotated[User, Depends(get_current_user)],
 ) -> list[AdminResponse]:
     if current_user.user_type != UserType.ADMIN:
         raise HTTPException(
