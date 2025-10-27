@@ -6,7 +6,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.core.enums import SortOrder
 from app.database.mongodb import db
-from app.schemas.item import CreateItemRequest, Item, ItemSortParam, Status, UpdateItemRequest
+from app.schemas.item import CreateItemRequest, Item, ItemSortParam, ItemStatus, UpdateItemRequest
 from app.utils.object_id import parse_object_id
 
 
@@ -19,7 +19,7 @@ class ItemModel:
 
         item_data["time_posted"] = datetime.now()
         item_data["vendor_id"] = ObjectId(vendor_id)
-        item_data["status"] = Status.ACTIVE
+        item_data["status"] = ItemStatus.ACTIVE
         item_data["price"] = 30  # set to default 30 for now
 
         result = await self.collection.insert_one(item_data)
@@ -62,7 +62,7 @@ class ItemModel:
 
         return [Item(**item) for item in items_list]
 
-    async def get_item(self, item_id: str) -> Item | None:
+    async def get_item_by_id(self, item_id: str) -> Item | None:
         item_obj_id = parse_object_id(item_id)
 
         item = await self.collection.find_one({"_id": item_obj_id})
@@ -102,6 +102,15 @@ class ItemModel:
 
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Item not found")
+
+    async def update_item_image(self, item_id: str, s3_key: str) -> str:
+        print(f"updating the item image: {s3_key}")
+        updated_event = await self.collection.update_one(
+            {"_id": ObjectId(item_id)}, {"$set": {"image_s3_key": s3_key}}
+        )
+        print(updated_event)
+        print("sucessfully updated item image s3 key in mongo")
+        return s3_key
 
 
 item_model = ItemModel()

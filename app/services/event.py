@@ -1,8 +1,9 @@
 from fastapi import HTTPException, status
-from app.schemas.event import Event
-from app.schemas.data_types import Location
-from app.core.config import settings
 from httpx import AsyncClient
+
+from app.core.config import settings
+from app.schemas.data_types import Location
+from app.schemas.event import Event
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
@@ -16,6 +17,8 @@ class EventService:
         from app.models.event import event_model
 
         event = await event_model.get_event_by_id(event_id)
+        print(f"Authorizing org {org_id} for event {event_id}")
+        print(f"Event org: {event.organization_id }")
         if not event:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -41,3 +44,10 @@ class EventService:
         loc = data["results"][0]["geometry"]["location"]
 
         return Location(type="Point", coordinates=[loc["lng"], loc["lat"]])
+
+    async def update_event_image(self, event_id: str, s3_key: str, user_id: str) -> str:
+        from app.models.event import event_model
+
+        await self.authorize_org(event_id, user_id)
+        updated = await event_model.update_event_image(event_id, s3_key)
+        return updated

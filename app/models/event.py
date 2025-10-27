@@ -172,5 +172,14 @@ class EventModel:
         docs = await cursor.to_list(length=None)
         return [Event(**d) for d in docs]
 
+    async def update_event_image(self, event_id: str, s3_key: str) -> str:
+        print(f"updating the event image: {s3_key}")
+        updated_event = await self.collection.update_one(
+            {"_id": ObjectId(event_id)}, {"$set": {"image_s3_key": s3_key}}
+        )
+        print(updated_event)
+        print("sucessfully updated event image s3 key in mongo")
+        return s3_key
+
 
 event_model = EventModel()

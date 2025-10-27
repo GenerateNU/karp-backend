@@ -21,7 +21,7 @@ class OrderService:
                     detail="You can only access your own orders",
                 )
         elif current_user.user_type == UserType.VENDOR:
-            item = await item_model.get_item(order.item_id)
+            item = await item_model.get_item_by_id(order.item_id)
             if current_user.entity_id != item.vendor_id:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
