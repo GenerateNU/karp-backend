@@ -30,7 +30,7 @@ async def create_order(
             detail="You must be associated with a volunteer profile to place an order",
         )
 
-    await item_model.get_item(order.item_id)
+    await item_model.get_item_by_id(order.item_id)
     return await order_model.create_order(order, current_user.entity_id)
 
 
@@ -57,7 +57,7 @@ async def get_orders_by_item_id(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> list[Order]:
     if current_user.user_type == UserType.VENDOR:
-        item = await item_model.get_item(item_id)
+        item = await item_model.get_item_by_id(item_id)
         if current_user.entity_id != item.vendor_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
