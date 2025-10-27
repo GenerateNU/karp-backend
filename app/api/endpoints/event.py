@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.api.endpoints.user import get_current_user
 from app.models.event import event_model
-from app.models.organization import organization_model
+from app.models.organization import org_model
 from app.schemas.data_types import Location, Status
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
 from app.schemas.s3 import PresignedUrlResponse
@@ -87,7 +87,7 @@ async def create_event(
             detail="You must be associated with an organization to create an event",
         )
 
-    organization = await organization_model.get_organization_by_id(current_user.entity_id)
+    organization = await org_model.get_organization_by_id(current_user.entity_id)
     if organization.status != Status.APPROVED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

@@ -8,7 +8,7 @@ from app.core.enums import SortOrder
 from app.models.item import ItemSortParam, item_model
 from app.schemas.item import CreateItemRequest, Item, UpdateItemRequest
 from app.schemas.s3 import PresignedUrlResponse
-from app.schemas.vendor import Status
+from app.schemas.vendor import VendorStatus
 from app.schemas.user import User, UserType
 from app.services.item import ItemService
 from app.services.s3 import s3_service
@@ -29,7 +29,7 @@ async def post_item(
         )
 
     vendor = await vendor_model.get_vendor_by_id(current_user.entity_id)
-    if vendor.status != Status.APPROVED:
+    if vendor.status != VendorStatus.APPROVED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Your vendor is not approved to create items",
