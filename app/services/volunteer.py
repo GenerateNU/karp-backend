@@ -14,7 +14,7 @@ class VolunteerService:
         self.volunteer_achievements_service = VolunteerAchievementsService()
 
     async def check_level_up(self, volunteer: Volunteer) -> None:
-        current_exp = volunteer["exp"]
+        current_exp = volunteer["experience"]
         new_level = self.compute_level_from_exp(current_exp)
 
         if new_level != volunteer["level"]:

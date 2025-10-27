@@ -32,7 +32,6 @@ async def create_order(
 
     # Validate order and process payment (deduct coins)
     await order_service.validate_and_process_order(order.item_id, current_user.entity_id)
-
     return await order_model.create_order(order, current_user.entity_id)
 
 
