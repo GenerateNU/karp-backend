@@ -14,8 +14,16 @@ if TYPE_CHECKING:
 
 
 class EventModel:
+    _instance: "EventModel" = None
+
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["events"]
+
+    @classmethod
+    def get_instance(cls) -> "EventModel":
+        if EventModel._instance is None:
+            EventModel._instance = cls()
+        return EventModel._instance
 
     async def create_event(
         self, event: CreateEventRequest, user_id: str, location: Location
@@ -178,4 +186,4 @@ class EventModel:
         return s3_key
 
 
-event_model = EventModel()
+event_model = EventModel.get_instance()

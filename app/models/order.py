@@ -12,8 +12,16 @@ if TYPE_CHECKING:
 
 
 class OrderModel:
+    _instance: "OrderModel" = None
+
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["orders"]
+
+    @classmethod
+    def get_instance(cls) -> "OrderModel":
+        if OrderModel._instance is None:
+            OrderModel._instance = cls()
+        return OrderModel._instance
 
     async def get_order_by_id(self, order_id: str) -> Order:
         order = await self.collection.find_one({"_id": ObjectId(order_id)})
@@ -72,4 +80,4 @@ class OrderModel:
         return Order(**updated_doc)
 
 
-order_model = OrderModel()
+order_model = OrderModel.get_instance()

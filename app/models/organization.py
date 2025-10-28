@@ -13,8 +13,16 @@ from app.schemas.organization import (
 
 
 class OrganizationModel:
+    _instance: "OrganizationModel" = None
+
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["organizations"]
+
+    @classmethod
+    def get_instance(cls) -> "OrganizationModel":
+        if OrganizationModel._instance is None:
+            OrganizationModel._instance = cls()
+        return OrganizationModel._instance
 
     async def get_all_organizations(self) -> list[Organization]:
         orgs_list = await self.collection.find({"status": Status.APPROVED}).to_list(length=None)
@@ -61,4 +69,4 @@ class OrganizationModel:
         )
 
 
-org_model = OrganizationModel()
+org_model = OrganizationModel.get_instance()

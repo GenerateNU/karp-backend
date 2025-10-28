@@ -16,8 +16,16 @@ if TYPE_CHECKING:
 
 
 class VolunteerAchievementModel:
+    _instance: "VolunteerAchievementModel" = None
+
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["volunteerAchievements"]
+
+    @classmethod
+    def get_instance(cls) -> "VolunteerAchievementModel":
+        if VolunteerAchievementModel._instance is None:
+            VolunteerAchievementModel._instance = cls()
+        return VolunteerAchievementModel._instance
 
     async def create_volunteer_achievement(
         self, volunteer_achievement: CreateVolunteerAchievementRequest
@@ -82,4 +90,4 @@ class VolunteerAchievementModel:
             raise HTTPException(status_code=404, detail="Volunteer achievement not found")
 
 
-volunteer_achievement_model = VolunteerAchievementModel()
+volunteer_achievement_model = VolunteerAchievementModel.get_instance()

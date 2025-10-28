@@ -8,8 +8,16 @@ from app.schemas.vendor import CreateVendorRequest, UpdateVendorRequest, Vendor
 
 
 class VendorModel:
+    _instance: "VendorModel" = None
+
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["vendors"]
+
+    @classmethod
+    def get_instance(cls) -> "VendorModel":
+        if VendorModel._instance is None:
+            VendorModel._instance = cls()
+        return VendorModel._instance
 
     async def get_vendor_by_id(self, vendor_id: str) -> Vendor:
         vendor_data = await self.collection.find_one({"_id": ObjectId(vendor_id)})
@@ -47,4 +55,4 @@ class VendorModel:
         await self.collection.delete_many({})
 
 
-vendor_model = VendorModel()
+vendor_model = VendorModel.get_instance()
