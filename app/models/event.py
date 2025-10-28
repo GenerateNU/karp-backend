@@ -9,7 +9,6 @@ from app.models.user import user_model
 from app.schemas.data_types import Location
 from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStatusRequest
 
-
 if TYPE_CHECKING:
     from motor.motor_asyncio import AsyncIOMotorCollection
 
@@ -173,12 +172,9 @@ class EventModel:
         return [Event(**d) for d in docs]
 
     async def update_event_image(self, event_id: str, s3_key: str) -> str:
-        print(f"updating the event image: {s3_key}")
-        updated_event = await self.collection.update_one(
+        await self.collection.update_one(
             {"_id": ObjectId(event_id)}, {"$set": {"image_s3_key": s3_key}}
         )
-        print(updated_event)
-        print("sucessfully updated event image s3 key in mongo")
         return s3_key
 
 
