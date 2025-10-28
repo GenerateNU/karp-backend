@@ -1,3 +1,4 @@
+from datetime import date
 from enum import Enum
 
 from pydantic import BaseModel
@@ -11,19 +12,6 @@ class EventType(str, Enum):
     FOOD_PANTRY = "Food Pantry"
     CLEANUP = "Cleanup"
     TUTORING = "Tutoring"
-
-
-class GradeLevel(str, Enum):
-    SIXTH_GRADE = "6th Grade"
-    SEVENTH_GRADE = "7th Grade"
-    EIGHTH_GRADE = "8th Grade"
-    NINTH_GRADE = "9th Grade"
-    TENTH_GRADE = "10th Grade"
-    ELEVENTH_GRADE = "11th Grade"
-    TWELFTH_GRADE = "12th Grade"
-    UNDERGRADUATE = "Undergraduate"
-    MASTERS = "Masters"
-    PHD = "PhD"
 
 
 class Qualification(str, Enum):
@@ -50,9 +38,9 @@ class Volunteer(BaseModel):
     id: str
     first_name: str
     last_name: str
-    age: int
-    coins: int
-    grade_level: GradeLevel
+    coins: int = 0
+    preferred_name: str | None = None
+    birth_date: date
     preferences: list[EventType]  # come back
     qualifications: list[Qualification]
     preferred_days: list[DayOfWeek]
@@ -67,9 +55,8 @@ class Volunteer(BaseModel):
 class CreateVolunteerRequest(BaseModel):
     first_name: str
     last_name: str
-    age: int
-    coins: int
-    grade_level: GradeLevel
+    preferred_name: str | None = None
+    birth_date: date
     preferences: list[EventType] = []
     qualifications: list[Qualification] = []
     preferred_days: list[DayOfWeek] = []
@@ -79,9 +66,9 @@ class CreateVolunteerRequest(BaseModel):
 class UpdateVolunteerRequest(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
-    age: int | None = None
     coins: int | None = None
-    grade_level: GradeLevel | None = None
+    preferred_name: str | None = None
+    birth_date: date | None = None
     preferences: list[EventType] | None = None
     qualifications: list[Qualification] | None = None
     preferred_days: list[DayOfWeek] | None = None
