@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import datetime
 from enum import Enum
 
 from pydantic import BaseModel
@@ -40,7 +40,7 @@ class Volunteer(BaseModel):
     last_name: str
     coins: int = 0
     preferred_name: str | None = None
-    birth_date: date
+    birth_date: datetime
     preferences: list[EventType]  # come back
     qualifications: list[Qualification]
     preferred_days: list[DayOfWeek]
@@ -56,7 +56,7 @@ class CreateVolunteerRequest(BaseModel):
     first_name: str
     last_name: str
     preferred_name: str | None = None
-    birth_date: date
+    birth_date: datetime
     preferences: list[EventType] = []
     qualifications: list[Qualification] = []
     preferred_days: list[DayOfWeek] = []
@@ -68,7 +68,7 @@ class UpdateVolunteerRequest(BaseModel):
     last_name: str | None = None
     coins: int | None = None
     preferred_name: str | None = None
-    birth_date: date | None = None
+    birth_date: datetime | None = None
     preferences: list[EventType] | None = None
     qualifications: list[Qualification] | None = None
     preferred_days: list[DayOfWeek] | None = None
