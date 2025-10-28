@@ -8,6 +8,17 @@ GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
 
 class GeocodingService:
+    _instance: "GeocodingService" = None
+
+    def __init__(self):
+        pass
+
+    @classmethod
+    def get_instance(cls) -> "GeocodingService":
+        if GeocodingService._instance is None:
+            GeocodingService._instance = cls()
+        return GeocodingService._instance
+
     async def location_to_coordinates(self, address: str) -> Location:
         params = {"address": address, "key": settings.GOOGLE_MAPS_KEY}
         async with AsyncClient(timeout=10) as client:
@@ -24,4 +35,4 @@ class GeocodingService:
         return Location(type="Point", coordinates=[loc["lng"], loc["lat"]])
 
 
-geocoding_service = GeocodingService()
+geocoding_service = GeocodingService.get_instance()

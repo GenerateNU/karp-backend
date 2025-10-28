@@ -8,10 +8,9 @@ from app.models.order import order_model
 from app.models.volunteer import volunteer_model
 from app.schemas.order import CreateOrderRequest, Order, UpdateOrderRequest
 from app.schemas.user import User, UserType
-from app.services.order import OrderService
+from app.services.order import order_service
 
 router = APIRouter()
-order_service = OrderService(order_model)
 
 
 @router.post("/new", response_model=Order)

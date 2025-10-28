@@ -3,18 +3,17 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from app.api.endpoints.user import get_current_user
-from app.models.vendor import vendor_model
 from app.core.enums import SortOrder
 from app.models.item import ItemSortParam, item_model
+from app.models.vendor import vendor_model
 from app.schemas.item import CreateItemRequest, Item, UpdateItemRequest
 from app.schemas.s3 import PresignedUrlResponse
-from app.schemas.vendor import VendorStatus
 from app.schemas.user import User, UserType
-from app.services.item import ItemService
+from app.schemas.vendor import VendorStatus
+from app.services.item import item_service
 from app.services.s3 import s3_service
 
 router = APIRouter()
-item_service = ItemService(item_model)
 
 
 @router.post("/new", response_model=Item)

@@ -10,7 +10,7 @@ from app.schemas.data_types import Location, Status
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
 from app.schemas.s3 import PresignedUrlResponse
 from app.schemas.user import User, UserType
-from app.services.event import EventService
+from app.services.event import event_service
 from app.services.geocoding import geocoding_service
 from app.services.s3 import s3_service
 
@@ -18,7 +18,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-event_service = EventService()
 
 
 @router.get("/all", response_model=list[Event])

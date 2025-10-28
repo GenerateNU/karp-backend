@@ -3,16 +3,16 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.api.endpoints.user import get_current_user
+from app.models.event import event_model
 from app.models.registration import registration_model
 from app.models.volunteer import volunteer_model
-from app.models.event import event_model
 from app.schemas.event import Event
 from app.schemas.registration import CreateRegistrationRequest, Registration, RegistrationStatus
 from app.schemas.user import User, UserType
-from app.services.volunteer import VolunteerService
+from app.services.volunteer import volunteer_service
 
 router = APIRouter()
-volunteer_service = VolunteerService()
+
 
 # do we want to make this partiful s.t. only volunteers signed up for the event can see who going?
 @router.get("/event-volunteers/{event_id}", response_model=list[Registration])
@@ -122,6 +122,8 @@ async def check_out_registration(
 
     event = await event_model.get_event_by_id(event_id)
     registration = await registration_model.check_out_registration(volunteer_id, event_id)
-    await volunteer_service.handle_volunteer_checkout_rewards(registration, volunteer_id, event, volunteer)
+    await volunteer_service.handle_volunteer_checkout_rewards(
+        registration, volunteer_id, event, volunteer
+    )
 
     return registration

@@ -8,18 +8,24 @@ from app.core.config import settings
 
 
 class S3Service:
+    _instance: "S3Service" = None
+
     def __init__(self):
-        pass
+        self.AWS_REGION = settings.AWS_REGION
+        self.BUCKET_NAME = settings.AWS_S3_BUCKET_NAME
 
-    AWS_REGION = settings.AWS_REGION
-    BUCKET_NAME = settings.AWS_S3_BUCKET_NAME
+        self.s3_client = boto3.client(
+            "s3",
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+            region_name=self.AWS_REGION,
+        )
 
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=AWS_REGION,
-    )
+    @classmethod
+    def get_instance(cls) -> "S3Service":
+        if S3Service._instance is None:
+            S3Service._instance = cls()
+        return S3Service._instance
 
     # Create a safe filename with a UUID to avoid unsafe characters such as :, ?, &
     def make_safe_filename(self, original_url: str, dir_prefix: str) -> str:
@@ -55,4 +61,4 @@ class S3Service:
             raise RuntimeError(f"Failed to get pre-signed URL: {e}") from e
 
 
-s3_service = S3Service()
+s3_service = S3Service.get_instance()

@@ -8,11 +8,20 @@ from app.schemas.user import User, UserType
 
 
 class OrderService:
-    def __init__(self, model=order_model):
-        self.model = model
+    _instance: "OrderService" = None
+
+    def __init__(self, order_model=order_model, item_model=item_model):
+        self.order_model = order_model
+        self.item_model = item_model
+
+    @classmethod
+    def get_instance(cls) -> "OrderService":
+        if OrderService._instance is None:
+            OrderService._instance = cls()
+        return OrderService._instance
 
     async def authorize_order_access(self, order_id: str, current_user: User) -> Order:
-        order = await self.model.get_order_by_id(order_id)
+        order = await self.order_model.get_order_by_id(order_id)
 
         if current_user.user_type == UserType.VOLUNTEER:
             if current_user.entity_id != order.volunteer_id:
@@ -33,7 +42,7 @@ class OrderService:
         return order
 
     async def validate_and_process_order(self, item_id: str, volunteer_id: str) -> None:
-        item = await item_model.get_item(item_id)
+        item = await self.item_model.get_item(item_id)
         if not item:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
@@ -52,3 +61,6 @@ class OrderService:
         # Deduct coins from volunteer
         new_coin_balance = volunteer.coins - item.price
         await volunteer_model.update_volunteer(volunteer_id, {"coins": new_coin_balance})
+
+
+order_service = OrderService.get_instance()
