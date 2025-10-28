@@ -6,8 +6,16 @@ from app.utils.object_id import parse_object_id
 
 
 class AchievementModel:
+    _instance: "AchievementModel" = None
+
     def __init__(self):
         self.collection = db["achievements"]
+
+    @classmethod
+    def get_instance(cls) -> "AchievementModel":
+        if AchievementModel._instance is None:
+            AchievementModel._instance = cls()
+        return AchievementModel._instance
 
     async def create_achievement(self, achievement: CreateAchievementRequest) -> Achievement:
         achievement_data = achievement.model_dump()
@@ -74,4 +82,4 @@ class AchievementModel:
         return [Achievement(**achievement) for achievement in achievements_list]
 
 
-achievement_model = AchievementModel()
+achievement_model = AchievementModel.get_instance()

@@ -18,8 +18,16 @@ if TYPE_CHECKING:
 
 
 class VolunteerModel:
+    _instance: "VolunteerModel" = None
+
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["volunteers"]
+
+    @classmethod
+    def get_instance(cls) -> "VolunteerModel":
+        if VolunteerModel._instance is None:
+            VolunteerModel._instance = cls()
+        return VolunteerModel._instance
 
     async def get_volunteer_by_id(self, volunteer_id: str) -> Volunteer:
         volunteer = await self.collection.find_one({"_id": ObjectId(volunteer_id)})
@@ -144,4 +152,4 @@ class VolunteerModel:
         return Volunteer(**volunteer_data)
 
 
-volunteer_model = VolunteerModel()
+volunteer_model = VolunteerModel.get_instance()

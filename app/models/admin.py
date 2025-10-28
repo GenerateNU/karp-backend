@@ -9,8 +9,16 @@ from app.schemas.admin import (
 
 
 class AdminModel:
+    _instance: "AdminModel" = None
+
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["admins"]
+
+    @classmethod
+    def get_instance(cls) -> "AdminModel":
+        if AdminModel._instance is None:
+            AdminModel._instance = cls()
+        return AdminModel._instance
 
     async def create_admin(self, admin_id: str) -> Admin:
         admin_data = {"is_active": True}
@@ -134,4 +142,4 @@ class AdminModel:
         )
 
 
-admin_model = AdminModel()
+admin_model = AdminModel.get_instance()

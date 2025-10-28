@@ -5,18 +5,19 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.api.endpoints.user import get_current_user
 from app.models.event import event_model
+from app.models.organization import org_model
 from app.schemas.data_types import Location, Status
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
 from app.schemas.s3 import PresignedUrlResponse
 from app.schemas.user import User, UserType
-from app.services.event import EventService
+from app.services.event import event_service
+from app.services.geocoding import geocoding_service
 from app.services.s3 import s3_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-event_service = EventService()
 
 
 @router.get("/all", response_model=list[Event])
@@ -86,7 +87,21 @@ async def create_event(
             detail="You must be associated with an organization to create an event",
         )
 
-    return await event_model.create_event(event, current_user.id)
+    organization = await org_model.get_organization_by_id(current_user.entity_id)
+    if organization.status != Status.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Your organization is not approved to create events",
+        )
+
+    if not event.address:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Address is required to create an event",
+        )
+
+    coordinates = await geocoding_service.location_to_coordinates(event.address)
+    return await event_model.create_event(event, current_user.id, coordinates)
 
 
 @router.delete("/clear", response_model=None)
