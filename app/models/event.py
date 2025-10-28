@@ -6,8 +6,8 @@ from fastapi import HTTPException
 
 from app.database.mongodb import db
 from app.models.user import user_model
-from app.schemas.data_types import Location
 from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStatusRequest
+from app.schemas.location import Location
 
 if TYPE_CHECKING:
     from motor.motor_asyncio import AsyncIOMotorCollection

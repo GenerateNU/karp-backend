@@ -3,7 +3,7 @@ from enum import Enum
 
 from pydantic import BaseModel
 
-from app.schemas.data_types import Location
+from app.schemas.location import Location
 
 
 class EventType(str, Enum):

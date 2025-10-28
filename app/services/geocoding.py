@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from httpx import AsyncClient
 
 from app.core.config import settings
-from app.schemas.data_types import Location
+from app.schemas.location import Location
 
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
 
