@@ -11,6 +11,7 @@ from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusReques
 from app.schemas.s3 import PresignedUrlResponse
 from app.schemas.user import User, UserType
 from app.services.event import EventService
+from app.services.geocoding import geocoding_service
 from app.services.s3 import s3_service
 
 logging.basicConfig(level=logging.INFO)
@@ -100,7 +101,7 @@ async def create_event(
             detail="Address is required to create an event",
         )
 
-    coordinates = await event_service.location_to_coordinates(event.address)
+    coordinates = await geocoding_service.location_to_coordinates(event.address)
     return await event_model.create_event(event, current_user.id, coordinates)
 
 
