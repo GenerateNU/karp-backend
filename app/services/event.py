@@ -2,6 +2,7 @@ from fastapi import HTTPException, status
 
 from app.models.event import event_model
 from app.schemas.event import Event
+from app.schemas.location import Location
 
 
 class EventService:
@@ -36,6 +37,11 @@ class EventService:
         await self.authorize_org(event_id, user_id)
         updated = await self.event_model.update_event_image(event_id, s3_key)
         return updated
+
+    async def get_events_near(self, lat: float, lng: float, distance_km: float) -> list[Event]:
+        location = Location(type="Point", coordinates=[lng, lat])
+        max_distance_meters = int(distance_km * 1000)
+        return await self.event_model.get_events_by_location(max_distance_meters, location)
 
 
 event_service = EventService.get_instance()

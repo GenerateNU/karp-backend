@@ -7,7 +7,6 @@ from app.api.endpoints.user import get_current_user
 from app.models.event import event_model
 from app.models.organization import org_model
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
-from app.schemas.location import Location
 from app.schemas.s3 import PresignedUrlResponse
 from app.schemas.status import Status
 from app.schemas.user import User, UserType
@@ -32,17 +31,6 @@ async def get_events_by_org(organization_id: str) -> list[Event]:
     return event_list
 
 
-@router.get("/near", response_model=list[Event])
-async def get_events_near(
-    lat: float = Query(..., ge=-90, le=90),
-    lng: float = Query(..., ge=-180, le=180),
-    distance_km: float = Query(25, gt=0, le=200),
-) -> list[Event]:
-    location = Location(type="Point", coordinates=[lng, lat])
-    max_distance_meters = int(distance_km * 1000)
-    return await event_model.get_events_by_location(max_distance_meters, location)
-
-
 @router.get("/search", response_model=list[Event])
 async def search_events(
     q: Annotated[str | None, Query(description="Search term (name, description, keywords)")] = None,
@@ -55,6 +43,9 @@ async def search_events(
     age: Annotated[
         int | None, Query(ge=0, description="User age for eligibility filtering")
     ] = None,
+    lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
+    distance_km: Annotated[float | None, Query(gt=0, le=200)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[Event]:
@@ -65,6 +56,9 @@ async def search_events(
         statuses=statuses,
         organization_id=organization_id,
         age=age,
+        lat=lat,
+        lng=lng,
+        distance_km=distance_km,
         page=page,
         limit=limit,
     )

@@ -25,6 +25,12 @@ class EventModel:
             EventModel._instance = cls()
         return EventModel._instance
 
+    async def create_indexes(self):
+        try:
+            await self.collection.create_index([("location", "2dsphere")])
+        except Exception:
+            pass
+
     async def create_event(
         self, event: CreateEventRequest, user_id: str, location: Location
     ) -> Event:
@@ -115,6 +121,9 @@ class EventModel:
         statuses: list[Status] | None = None,
         organization_id: str | None = None,
         age: int | None = None,
+        lat: float | None = None,
+        lng: float | None = None,
+        distance_km: float | None = None,
         page: int = 1,
         limit: int = 20,
     ) -> list[Event]:
@@ -167,6 +176,13 @@ class EventModel:
                 filters = {"$and": [filters, filters_q]}
             else:
                 filters = filters_q
+
+        if lat and lng and distance_km:
+            location = Location(type="Point", coordinates=[lng, lat])
+            max_distance_meters = int(distance_km * 1000)
+            filters["location"] = {
+                "$near": {"$geometry": location.model_dump(), "$maxDistance": max_distance_meters}
+            }
 
         direction = 1 if sort_dir == "asc" else -1
         skip = max(0, (page - 1) * max(1, limit))

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.api.endpoints.user import get_current_user
 from app.models.organization import org_model
@@ -11,6 +11,7 @@ from app.schemas.organization import (
     UpdateOrganizationRequest,
 )
 from app.schemas.user import User, UserType
+from app.services.geocoding import geocoding_service
 
 router = APIRouter()
 
@@ -23,8 +24,12 @@ async def get_self(
 
 
 @router.get("/all", response_model=list[Organization])
-async def get_organizations() -> list[Organization]:
-    return await org_model.get_all_organizations()
+async def get_organizations(
+    lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
+    distance_km: Annotated[float | None, Query(gt=0, le=200)] = None,
+) -> list[Organization]:
+    return await org_model.get_all_organizations(lat=lat, lng=lng, distance_km=distance_km)
 
 
 @router.get("/{org_id}", response_model=Organization)
@@ -54,7 +59,9 @@ async def create_organization(
             detail="You have already been associated with a organization",
         )
 
-    return await org_model.create_organization(org, current_user.id)
+    location = await geocoding_service.location_to_coordinates(org.address)
+
+    return await org_model.create_organization(org, current_user.id, location)
 
 
 @router.put("/{org_id}", response_model=Organization)
@@ -75,7 +82,9 @@ async def update_organization(
             detail="You do not have permission to update this organization",
         )
 
-    return await org_model.update_organization(org_id, org)
+    location = await geocoding_service.location_to_coordinates(org.address) if org.address else None
+
+    return await org_model.update_organization(org_id, org, location)
 
 
 @router.delete("/{org_id}", response_model=None)

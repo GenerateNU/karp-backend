@@ -4,6 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
 from app.models.user import user_model
+from app.schemas.location import Location
 from app.schemas.organization import (
     CreateOrganizationRequest,
     Organization,
@@ -24,8 +25,26 @@ class OrganizationModel:
             OrganizationModel._instance = cls()
         return OrganizationModel._instance
 
-    async def get_all_organizations(self) -> list[Organization]:
-        orgs_list = await self.collection.find({"status": Status.APPROVED}).to_list(length=None)
+    async def create_indexes(self):
+        try:
+            await self.collection.create_index([("location", "2dsphere")])
+        except Exception:
+            pass
+
+    async def get_all_organizations(
+        self,
+        lat: float | None = None,
+        lng: float | None = None,
+        distance_km: float | None = None,
+    ) -> list[Organization]:
+        filters = {"status": Status.APPROVED}
+        if lat and lng and distance_km:
+            location = Location(type="Point", coordinates=[lng, lat])
+            distance = int(distance_km * 1000)
+            filters["location"] = {
+                "$near": {"$geometry": location.model_dump(), "$maxDistance": distance}
+            }
+        orgs_list = await self.collection.find(filters).to_list(length=None)
 
         return [Organization(**org) for org in orgs_list]
 
@@ -41,23 +60,26 @@ class OrganizationModel:
         return None
 
     async def create_organization(
-        self, organization: CreateOrganizationRequest, user_id: str
+        self, organization: CreateOrganizationRequest, user_id: str, location: Location
     ) -> Organization:
         org_data = organization.model_dump()
         org_data["status"] = Status.IN_REVIEW
+        org_data["location"] = location.model_dump()
 
         result = await self.collection.insert_one(org_data)
 
         await user_model.update_entity_id_by_id(user_id, str(result.inserted_id))
 
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
+
         return Organization(**inserted_doc)
 
     async def update_organization(
-        self, org_id: str, organization: UpdateOrganizationRequest
+        self, org_id: str, organization: UpdateOrganizationRequest, location: Location | None = None
     ) -> Organization:
         org_data = organization.model_dump(exclude_unset=True)
-
+        if location:
+            org_data["location"] = location.model_dump()
         await self.collection.update_one({"_id": ObjectId(org_id)}, {"$set": org_data})
 
         updated_doc = await self.collection.find_one({"_id": ObjectId(org_id)})
