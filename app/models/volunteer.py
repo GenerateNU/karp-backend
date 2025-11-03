@@ -162,18 +162,9 @@ class VolunteerModel:
                 # Default to 25 years ago if neither birth_date nor age is present
                 volunteer_data["birth_date"] = datetime.now() - timedelta(days=25 * 365)
 
-        # Handle missing qualifications - default to empty list
-        if "qualifications" not in volunteer_data:
-            volunteer_data["qualifications"] = []
-
-        # Handle missing preferred_days - default to empty list
-        if "preferred_days" not in volunteer_data:
-            volunteer_data["preferred_days"] = []
-
-        # Handle missing preferences - default to empty list
-        if "preferences" not in volunteer_data:
-            volunteer_data["preferences"] = []
-
+        # Handle missing list fields - default to empty list
+        for field in ["qualifications", "preferred_days", "preferences"]:
+            volunteer_data.setdefault(field, [])
         return Volunteer(**volunteer_data)
 
 
