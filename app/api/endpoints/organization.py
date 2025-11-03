@@ -70,13 +70,16 @@ async def update_organization(
     org: Annotated[UpdateOrganizationRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> Organization:
-    if current_user.entity_id is None:
+    if current_user.user_type != UserType.ADMIN or current_user.entity_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You are not associated with any organization",
         )
 
-    if not await user_model.owns_entity(current_user.id, org_id):
+    if (
+        not await user_model.owns_entity(current_user.id, org_id)
+        or current_user.user_type != UserType.ADMIN
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to update this organization",
