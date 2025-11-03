@@ -75,19 +75,19 @@ async def create_event(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only users with organization role can create an event",
         )
-
-    if current_user.entity_id is None and current_user.user_type != UserType.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must be associated with an organization to create an event",
-        )
-
-    organization = await org_model.get_organization_by_id(current_user.entity_id)
-    if organization.status != Status.APPROVED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Your organization is not approved to create events",
-        )
+    # Non-admins must be associated to an approved organization
+    if current_user.user_type != UserType.ADMIN:
+        if current_user.entity_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You must be associated with an organization to create an event",
+            )
+        organization = await org_model.get_organization_by_id(current_user.entity_id)
+        if organization.status != Status.APPROVED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Your organization is not approved to create events",
+            )
 
     if not event.address:
         raise HTTPException(
@@ -138,8 +138,9 @@ async def update_event_status(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must be associated with an organization to create an event",
         )
-
-    await event_service.authorize_org(event_id, current_user.entity_id)
+    # Admins can bypass org authorization
+    if current_user.user_type != UserType.ADMIN:
+        await event_service.authorize_org(event_id, current_user.entity_id)
     updated_event = await event_model.update_event_status(event_id, event)
     return updated_event
 
@@ -159,8 +160,9 @@ async def clear_event_by_id(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must be associated with an organization to delete an event",
         )
-
-    await event_service.authorize_org(event_id, current_user.entity_id)
+    # Admins can bypass org authorization
+    if current_user.user_type != UserType.ADMIN:
+        await event_service.authorize_org(event_id, current_user.entity_id)
     return await event_model.delete_event_by_id(event_id)
 
 
