@@ -1,22 +1,25 @@
 from fastapi import HTTPException, status
-from httpx import AsyncClient
 
-from app.core.config import settings
-from app.schemas.data_types import Location
+from app.models.event import event_model
 from app.schemas.event import Event
-
-GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
+from app.schemas.location import Location
 
 
 class EventService:
-    def __init__(self):
-        pass
+    _instance: "EventService" = None
+
+    def __init__(self, event_model=event_model):
+        self.event_model = event_model
+
+    @classmethod
+    def get_instance(cls) -> "EventService":
+        if EventService._instance is None:
+            EventService._instance = cls()
+        return EventService._instance
 
     # ensure that only the org who created the event can modify it
     async def authorize_org(self, event_id: str, org_id: str) -> Event | None:
-        from app.models.event import event_model
-
-        event = await event_model.get_event_by_id(event_id)
+        event = await self.event_model.get_event_by_id(event_id)
         print(f"Authorizing org {org_id} for event {event_id}")
         print(f"Event org: {event.organization_id }")
         if not event:
@@ -30,24 +33,15 @@ class EventService:
                 detail="You do not have permission to modify this event",
             )
 
-    async def location_to_coordinates(self, address: str) -> Location:
-        params = {"address": address, "key": settings.GOOGLE_MAPS_KEY}
-        async with AsyncClient(timeout=10) as client:
-            r = await client.get(GEOCODE_URL, params=params)
-        if r.status_code != 200:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY, detail="Geocoding upstream error"
-            )
-        data = r.json()
-        if data.get("status") != "OK" or not data.get("results"):
-            raise HTTPException(status_code=400, detail=f"Geocoding failed: {data.get('status')}")
-        loc = data["results"][0]["geometry"]["location"]
-
-        return Location(type="Point", coordinates=[loc["lng"], loc["lat"]])
-
     async def update_event_image(self, event_id: str, s3_key: str, user_id: str) -> str:
-        from app.models.event import event_model
-
         await self.authorize_org(event_id, user_id)
-        updated = await event_model.update_event_image(event_id, s3_key)
+        updated = await self.event_model.update_event_image(event_id, s3_key)
         return updated
+
+    async def get_events_near(self, lat: float, lng: float, distance_km: float) -> list[Event]:
+        location = Location(type="Point", coordinates=[lng, lat])
+        max_distance_meters = int(distance_km * 1000)
+        return await self.event_model.get_events_by_location(max_distance_meters, location)
+
+
+event_service = EventService.get_instance()

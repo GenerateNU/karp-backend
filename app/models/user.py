@@ -5,8 +5,16 @@ from app.schemas.user import User
 
 
 class UserModel:
+    _instance: "UserModel" = None
+
     def __init__(self):
         self.collection = db["users"]
+
+    @classmethod
+    def get_instance(cls) -> "UserModel":
+        if UserModel._instance is None:
+            UserModel._instance = cls()
+        return UserModel._instance
 
     async def get_by_email(self, email: EmailStr) -> User | None:
         doc = await self.collection.find_one({"email": email})
@@ -56,4 +64,4 @@ class UserModel:
         return False
 
 
-user_model = UserModel()
+user_model = UserModel.get_instance()

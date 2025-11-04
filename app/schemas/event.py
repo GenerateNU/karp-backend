@@ -3,11 +3,11 @@ from datetime import UTC, datetime
 from bson import ObjectId
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
-from app.schemas.data_types import Location, Status
+from app.schemas.location import Location
+from app.schemas.status import Status
 
 
 class Event(BaseModel):
-    # Accepts input as `_id` or `id`, always serializes as `id` in responses
     id: str = Field(validation_alias=AliasChoices("_id", "id"), serialization_alias="id")
     name: str
     address: str

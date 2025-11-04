@@ -5,13 +5,19 @@ from app.schemas.item import Item
 
 
 class ItemService:
-    def __init__(self, model=item_model):
-        # Inject the model so it’s easy to mock for testing
-        self.model = model
+    _instance: "ItemService" = None
 
-    # ensure that only the vendor who created the item can modify it
+    def __init__(self, item_model=item_model):
+        self.item_model = item_model
+
+    @classmethod
+    def get_instance(cls) -> "ItemService":
+        if ItemService._instance is None:
+            ItemService._instance = cls()
+        return ItemService._instance
+
     async def authorize_vendor(self, item_id: str, vendor_id: str) -> Item | None:
-        item = await self.model.get_item_by_id(item_id)
+        item = await self.item_model.get_item_by_id(item_id)
         if not item:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -25,5 +31,8 @@ class ItemService:
 
     async def update_item_image(self, item_id: str, s3_key: str, user_id: str) -> str:
         await self.authorize_vendor(item_id, user_id)
-        updated = await item_model.update_item_image(item_id, s3_key)
+        updated = await self.item_model.update_item_image(item_id, s3_key)
         return updated
+
+
+item_service = ItemService.get_instance()

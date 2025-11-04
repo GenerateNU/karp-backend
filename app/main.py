@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -15,8 +17,21 @@ from app.api.endpoints import (
     volunteer,
     volunteer_achievement,
 )
+from app.models.event import EventModel
+from app.models.organization import OrganizationModel
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Create geospatial indexes on startup
+    event_model = EventModel.get_instance()
+    org_model = OrganizationModel.get_instance()
+    await event_model.create_indexes()
+    await org_model.create_indexes()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 # CORS configuration
 origins = [

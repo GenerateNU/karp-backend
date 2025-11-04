@@ -5,18 +5,19 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.api.endpoints.user import get_current_user
 from app.models.event import event_model
-from app.schemas.data_types import Location, Status
+from app.models.organization import org_model
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
 from app.schemas.s3 import PresignedUrlResponse
+from app.schemas.status import Status
 from app.schemas.user import User, UserType
-from app.services.event import EventService
+from app.services.event import event_service
+from app.services.geocoding import geocoding_service
 from app.services.s3 import s3_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-event_service = EventService()
 
 
 @router.get("/all", response_model=list[Event])
@@ -28,17 +29,6 @@ async def get_events() -> list[Event]:
 async def get_events_by_org(organization_id: str) -> list[Event]:
     event_list = await event_model.get_events_by_organization(organization_id)
     return event_list
-
-
-@router.get("/near", response_model=list[Event])
-async def get_events_near(
-    lat: float = Query(..., ge=-90, le=90),
-    lng: float = Query(..., ge=-180, le=180),
-    distance_km: float = Query(25, gt=0, le=200),
-) -> list[Event]:
-    location = Location(type="Point", coordinates=[lng, lat])
-    max_distance_meters = int(distance_km * 1000)
-    return await event_model.get_events_by_location(max_distance_meters, location)
 
 
 @router.get("/search", response_model=list[Event])
@@ -53,6 +43,9 @@ async def search_events(
     age: Annotated[
         int | None, Query(ge=0, description="User age for eligibility filtering")
     ] = None,
+    lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
+    distance_km: Annotated[float | None, Query(gt=0, le=200)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[Event]:
@@ -63,6 +56,9 @@ async def search_events(
         statuses=statuses,
         organization_id=organization_id,
         age=age,
+        lat=lat,
+        lng=lng,
+        distance_km=distance_km,
         page=page,
         limit=limit,
     )
@@ -86,7 +82,21 @@ async def create_event(
             detail="You must be associated with an organization to create an event",
         )
 
-    return await event_model.create_event(event, current_user.id)
+    organization = await org_model.get_organization_by_id(current_user.entity_id)
+    if organization.status != Status.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Your organization is not approved to create events",
+        )
+
+    if not event.address:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Address is required to create an event",
+        )
+
+    coordinates = await geocoding_service.location_to_coordinates(event.address)
+    return await event_model.create_event(event, current_user.id, coordinates)
 
 
 @router.delete("/clear", response_model=None)

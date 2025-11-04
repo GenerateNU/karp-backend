@@ -3,6 +3,8 @@ from enum import Enum
 from bson import ObjectId
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 
+from app.schemas.location import Location
+
 
 class Status(str, Enum):
     APPROVED = "APPROVED"
@@ -16,6 +18,7 @@ class Organization(BaseModel):
     name: str
     description: str
     status: Status
+    location: Location | None = None
 
     class Config:
         from_attributes = True
@@ -31,9 +34,11 @@ class Organization(BaseModel):
 class CreateOrganizationRequest(BaseModel):
     name: str
     description: str
+    address: str
 
 
 class UpdateOrganizationRequest(BaseModel):
     name: str | None = None
     description: str | None = None
     status: Status | None = None
+    address: str | None = None

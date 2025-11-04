@@ -11,8 +11,16 @@ from app.utils.object_id import parse_object_id
 
 
 class ItemModel:
+    _instance: "ItemModel" = None
+
     def __init__(self):
         self.collection: AsyncIOMotorCollection = db["items"]
+
+    @classmethod
+    def get_instance(cls) -> "ItemModel":
+        if ItemModel._instance is None:
+            ItemModel._instance = cls()
+        return ItemModel._instance
 
     async def create_item(self, item: CreateItemRequest, vendor_id: str) -> Item:
         item_data = item.model_dump()
@@ -113,4 +121,4 @@ class ItemModel:
         return s3_key
 
 
-item_model = ItemModel()
+item_model = ItemModel.get_instance()
