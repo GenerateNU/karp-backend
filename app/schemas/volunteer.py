@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.schemas.location import Location
 
@@ -14,6 +14,16 @@ class EventType(str, Enum):
     TUTORING = "Tutoring"
 
 
+class TrainingDocumentType(str, Enum):  # may use later
+    FIRST_AID = "First Aid"
+    CPR = "CPR"
+    LIFEGUARD = "Life Guard"
+    EMT = "EMT"
+
+
+class TrainingDocument(BaseModel):
+    file_type: str  # str for now bc we will have a dropdown for the frontend
+    image_s3_key: str
 class Qualification(str, Enum):
     CPR_CERTIFIED = "CPR Certified"
     ELDER_CARE = "Elder Care"
@@ -42,6 +52,7 @@ class Volunteer(BaseModel):
     preferred_name: str | None = None
     birth_date: datetime
     preferences: list[EventType]  # come back
+    training_documents: list[TrainingDocument] = Field(default_factory=list)
     qualifications: list[Qualification]
     preferred_days: list[DayOfWeek]
     is_active: bool = True
@@ -67,6 +78,7 @@ class UpdateVolunteerRequest(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
     coins: int | None = None
+    training_document: TrainingDocument | None = None
     preferred_name: str | None = None
     birth_date: datetime | None = None
     preferences: list[EventType] | None = None

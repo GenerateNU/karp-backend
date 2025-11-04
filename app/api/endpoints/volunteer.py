@@ -6,12 +6,15 @@ from app.api.endpoints.user import get_current_user
 from app.models.user import user_model
 from app.models.volunteer import volunteer_model
 from app.schemas.organization import Organization
+from app.schemas.s3 import PresignedUrlResponse
 from app.schemas.user import User, UserType
 from app.schemas.volunteer import (
     CreateVolunteerRequest,
+    TrainingDocument,
     UpdateVolunteerRequest,
     Volunteer,
 )
+from app.services.s3 import s3_service
 from app.utils.user import verify_entity_association, verify_user_role
 
 router = APIRouter()
@@ -119,3 +122,38 @@ async def delete_volunteer(
         )
 
     return await volunteer_model.delete_volunteer(volunteer_id)
+
+
+# Generate a pre-signed URL for an event image and store the S3 key in MongoDB
+@router.get("/me/upload-url", response_model=PresignedUrlResponse)
+async def upload_training_document_url(
+    filename: str,
+    document_type: str,
+    filetype: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+
+    if current_user.user_type not in [UserType.VOLUNTEER]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only users with volunteer role can upload a training document",
+        )
+
+    # Generate the pre-signed URL
+    url, new_s3_key = s3_service.generate_presigned_url(
+        filename,
+        content_type=filetype,
+        dir_prefix=f"volunteers/{current_user.id}/training_documents",
+    )
+    new_training_document = TrainingDocument(file_type=document_type, image_s3_key=new_s3_key)
+    updated_volunteer = UpdateVolunteerRequest(training_document=new_training_document)
+
+    # Update the MongoDB document with the S3 key
+    updated = await volunteer_model.update_volunteer(current_user.entity_id, updated_volunteer)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Volunteer not found")
+
+    return PresignedUrlResponse(
+        upload_url=url,
+        file_url=new_s3_key,
+    )
