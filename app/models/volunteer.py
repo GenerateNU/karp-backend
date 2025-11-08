@@ -10,6 +10,7 @@ from app.schemas.organization import Organization
 from app.schemas.volunteer import (
     CreateVolunteerRequest,
     EventType,
+    TrainingDocument,
     UpdateVolunteerRequest,
     Volunteer,
 )
@@ -142,8 +143,27 @@ class VolunteerModel:
     async def update_volunteer(
         self, volunteer_id: str, volunteer: UpdateVolunteerRequest
     ) -> Volunteer:
+        existing_volunteer = await self.get_volunteer_by_id(volunteer_id)
         volunteer_data = volunteer.model_dump(exclude_unset=True)
-        await self.collection.update_one({"_id": ObjectId(volunteer_id)}, {"$set": volunteer_data})
+
+        updated_data = {}
+        curr_training_docs = []
+
+        # retrieving and converting existing training documents from volunteer
+        for td in existing_volunteer.training_documents:
+            if isinstance(td, TrainingDocument):
+                curr_training_docs.append(td.model_dump())
+            else:
+                curr_training_docs.append(td)
+
+        # appending new training document to exisitng documents
+        if "training_document" in volunteer_data:
+            new_training_doc = volunteer_data.pop("training_document")
+            curr_training_docs.append(TrainingDocument(**new_training_doc).model_dump())
+
+        updated_data = {**volunteer_data, "training_documents": curr_training_docs}
+
+        await self.collection.update_one({"_id": ObjectId(volunteer_id)}, {"$set": updated_data})
         updated_doc = await self.collection.find_one({"_id": ObjectId(volunteer_id)})
         return self._to_volunteer(updated_doc)
 
@@ -165,6 +185,13 @@ class VolunteerModel:
         # Handle missing list fields - default to empty list
         for field in ["qualifications", "preferred_days", "preferences"]:
             volunteer_data.setdefault(field, [])
+        training_docs = volunteer_data.get("training_documents", [])
+
+        # converting dicts into TrainingDocuments objects
+        volunteer_data["training_documents"] = [
+            td if isinstance(td, TrainingDocument) else TrainingDocument(**td)
+            for td in training_docs
+        ]
         return Volunteer(**volunteer_data)
 
 
