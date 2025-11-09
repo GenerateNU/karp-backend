@@ -1,3 +1,5 @@
+from typing import Literal
+
 from bson import ObjectId
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
@@ -89,6 +91,81 @@ class OrganizationModel:
         await self.collection.update_one(
             {"_id": ObjectId(id)}, {"$set": {"status": Status.DELETED}}
         )
+
+    async def search_organizations(
+        self,
+        q: str | None = None,
+        sort_by: Literal["name", "coins", "max_volunteers"] = "name",
+        sort_dir: Literal["asc", "desc"] = "asc",
+        statuses: list[Status] | None = None,
+        age: int | None = None,
+        lat: float | None = None,
+        lng: float | None = None,
+        distance_km: float | None = None,
+        page: int = 1,
+        limit: int = 20,
+    ) -> list[Organization]:
+        filters: dict = {}
+        if statuses:
+            filters_status = {"status": {"$in": list(statuses)}}
+            if filters:
+                filters = {"$and": [filters, filters_status]}
+            else:
+                filters = filters_status
+
+        if age is not None:
+            age_clause = {
+                "$and": [
+                    {
+                        "$or": [
+                            {"age_min": {"$lte": age}},
+                            {"age_min": {"$exists": False}},
+                            {"age_min": None},
+                        ]
+                    },
+                    {
+                        "$or": [
+                            {"age_max": {"$gte": age}},
+                            {"age_max": {"$exists": False}},
+                            {"age_max": None},
+                        ]
+                    },
+                ]
+            }
+            if filters:
+                filters = {"$and": [filters, age_clause]}
+            else:
+                filters = age_clause
+        if q:
+            filters_q = {
+                "$or": [
+                    {"name": {"$regex": q, "$options": "i"}},
+                    {"description": {"$regex": q, "$options": "i"}},
+                    {"keywords": {"$elemMatch": {"$regex": q, "$options": "i"}}},
+                ]
+            }
+            if filters:
+                filters = {"$and": [filters, filters_q]}
+            else:
+                filters = filters_q
+
+        if lat and lng and distance_km:
+            location = Location(type="Point", coordinates=[lng, lat])
+            max_distance_meters = int(distance_km * 1000)
+            filters["location"] = {
+                "$near": {"$geometry": location.model_dump(), "$maxDistance": max_distance_meters}
+            }
+
+        direction = 1 if sort_dir == "asc" else -1
+        skip = max(0, (page - 1) * max(1, limit))
+        cursor = (
+            self.collection.find(filters or {})
+            .sort([(sort_by, direction), ("_id", 1)])
+            .skip(skip)
+            .limit(max(1, min(200, limit)))
+        )
+        docs = await cursor.to_list(length=None)
+        return [Organization(**d) for d in docs]
 
 
 org_model = OrganizationModel.get_instance()

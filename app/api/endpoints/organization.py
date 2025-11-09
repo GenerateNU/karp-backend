@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
@@ -8,6 +8,7 @@ from app.models.user import user_model
 from app.schemas.organization import (
     CreateOrganizationRequest,
     Organization,
+    Status,
     UpdateOrganizationRequest,
 )
 from app.schemas.user import User, UserType
@@ -30,6 +31,38 @@ async def get_organizations(
     distance_km: Annotated[float | None, Query(gt=0, le=200)] = None,
 ) -> list[Organization]:
     return await org_model.get_all_organizations(lat=lat, lng=lng, distance_km=distance_km)
+
+
+@router.get("/search", response_model=list[Organization])
+async def search_organizations(
+    q: Annotated[str | None, Query(description="Search term (name, description, keywords)")] = None,
+    sort_by: Annotated[Literal["name", "coins", "max_volunteers"], Query()] = "start_date_time",
+    sort_dir: Annotated[Literal["asc", "desc"], Query()] = "asc",
+    statuses: Annotated[
+        list[Status] | None, Query(description="Allowed organization statuses")
+    ] = None,
+    age: Annotated[
+        int | None, Query(ge=0, description="User age for eligibility filtering")
+    ] = None,
+    lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
+    distance_km: Annotated[float | None, Query(gt=0, le=200)] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=200)] = 20,
+) -> list[Organization]:
+    returned_orgs = await org_model.search_orgs(
+        q=q,
+        sort_by=sort_by,
+        sort_dir=sort_dir,
+        statuses=statuses,
+        age=age,
+        lat=lat,
+        lng=lng,
+        distance_km=distance_km,
+        page=page,
+        limit=limit,
+    )
+    return returned_orgs
 
 
 @router.get("/{org_id}", response_model=Organization)
