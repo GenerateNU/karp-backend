@@ -95,75 +95,99 @@ class OrganizationModel:
     async def search_organizations(
         self,
         q: str | None = None,
-        sort_by: Literal["name", "coins", "max_volunteers"] = "name",
+        sort_by: Literal["name", "status", "distance"] = "name",
         sort_dir: Literal["asc", "desc"] = "asc",
         statuses: list[Status] | None = None,
-        age: int | None = None,
         lat: float | None = None,
         lng: float | None = None,
         distance_km: float | None = None,
         page: int = 1,
         limit: int = 20,
     ) -> list[Organization]:
-        filters: dict = {}
+        filters: dict | None = None
         if statuses:
             filters_status = {"status": {"$in": list(statuses)}}
-            if filters:
-                filters = {"$and": [filters, filters_status]}
-            else:
-                filters = filters_status
+        elif sort_by == "status":
+            filters_status = None
+        else:
+            filters_status = {"status": Status.APPROVED}
 
-        if age is not None:
-            age_clause = {
-                "$and": [
-                    {
-                        "$or": [
-                            {"age_min": {"$lte": age}},
-                            {"age_min": {"$exists": False}},
-                            {"age_min": None},
-                        ]
-                    },
-                    {
-                        "$or": [
-                            {"age_max": {"$gte": age}},
-                            {"age_max": {"$exists": False}},
-                            {"age_max": None},
-                        ]
-                    },
-                ]
-            }
-            if filters:
-                filters = {"$and": [filters, age_clause]}
-            else:
-                filters = age_clause
+        filters = filters_status
+
         if q:
             filters_q = {
                 "$or": [
                     {"name": {"$regex": q, "$options": "i"}},
                     {"description": {"$regex": q, "$options": "i"}},
-                    {"keywords": {"$elemMatch": {"$regex": q, "$options": "i"}}},
                 ]
             }
-            if filters:
-                filters = {"$and": [filters, filters_q]}
-            else:
-                filters = filters_q
+            filters = {"$and": [filters, filters_q]} if filters else filters_q
 
-        if lat and lng and distance_km:
+        use_geo = False
+        if lat is not None and lng is not None and distance_km is not None:
             location = Location(type="Point", coordinates=[lng, lat])
             max_distance_meters = int(distance_km * 1000)
-            filters["location"] = {
-                "$near": {"$geometry": location.model_dump(), "$maxDistance": max_distance_meters}
+            geo_clause = {
+                "location": {
+                    "$near": {
+                        "$geometry": location.model_dump(),
+                        "$maxDistance": max_distance_meters,
+                    }
+                }
             }
+            filters = {"$and": [filters, geo_clause]} if filters else geo_clause
+            use_geo = True
 
         direction = 1 if sort_dir == "asc" else -1
         skip = max(0, (page - 1) * max(1, limit))
-        cursor = (
-            self.collection.find(filters or {})
-            .sort([(sort_by, direction), ("_id", 1)])
-            .skip(skip)
-            .limit(max(1, min(200, limit)))
-        )
+        safe_limit = max(1, min(200, limit))
+
+        if sort_by == "status":
+            match_stage = filters or {}
+            status_order = {
+                "APPROVED": 0,
+                "IN_REVIEW": 1,
+                "REJECTED": 2,
+                "DELETED": 3,
+            }
+
+            status_branches = [
+                {"case": {"$eq": ["$status", status]}, "then": rank}
+                for status, rank in status_order.items()
+            ]
+
+            pipeline: list[dict] = []
+            if match_stage:
+                pipeline.append({"$match": match_stage})
+
+            pipeline.append(
+                {
+                    "$addFields": {
+                        "status_rank": {"$switch": {"branches": status_branches, "default": 99}}
+                    }
+                }
+            )
+
+            pipeline.append({"$sort": {"status_rank": direction, "_id": 1}})
+            pipeline.append({"$project": {"status_rank": 0}})
+            pipeline.append({"$skip": skip})
+            pipeline.append({"$limit": safe_limit})
+
+            docs = await self.collection.aggregate(pipeline).to_list(length=None)
+            return [Organization(**d) for d in docs]
+
+        elif sort_by == "distance" and use_geo:
+            cursor = self.collection.find(filters or {}).skip(skip).limit(safe_limit)
+
+        else:
+            sort_field = sort_by if sort_by in ("name", "status") else "name"
+            cursor = (
+                self.collection.find(filters or {})
+                .sort([(sort_field, direction), ("_id", 1)])
+                .skip(skip)
+                .limit(safe_limit)
+            )
+
         docs = await cursor.to_list(length=None)
         return [Organization(**d) for d in docs]
 
