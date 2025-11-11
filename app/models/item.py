@@ -14,6 +14,8 @@ class ItemModel:
     _instance: "ItemModel" = None
 
     def __init__(self):
+        if ItemModel._instance is not None:
+            raise Exception("This class is a singleton!")
         self.collection: AsyncIOMotorCollection = db["items"]
 
     @classmethod

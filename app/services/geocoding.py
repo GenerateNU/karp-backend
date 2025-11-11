@@ -11,7 +11,8 @@ class GeocodingService:
     _instance: "GeocodingService" = None
 
     def __init__(self):
-        pass
+        if GeocodingService._instance is not None:
+            raise Exception("This class is a singleton!")
 
     @classmethod
     def get_instance(cls) -> "GeocodingService":

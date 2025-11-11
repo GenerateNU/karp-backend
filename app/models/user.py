@@ -8,6 +8,8 @@ class UserModel:
     _instance: "UserModel" = None
 
     def __init__(self):
+        if UserModel._instance is not None:
+            raise Exception("This class is a singleton!")
         self.collection = db["users"]
 
     @classmethod

@@ -11,6 +11,8 @@ class S3Service:
     _instance: "S3Service" = None
 
     def __init__(self):
+        if S3Service._instance is not None:
+            raise Exception("This class is a singleton!")
         self.AWS_REGION = settings.AWS_REGION
         self.BUCKET_NAME = settings.AWS_S3_BUCKET_NAME
 

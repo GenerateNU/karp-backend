@@ -9,6 +9,8 @@ class AchievementModel:
     _instance: "AchievementModel" = None
 
     def __init__(self):
+        if AchievementModel._instance is not None:
+            raise Exception("This class is a singleton!")
         self.collection = db["achievements"]
 
     @classmethod
