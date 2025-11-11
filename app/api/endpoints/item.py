@@ -54,26 +54,26 @@ async def get_item(item_id: str) -> Item:
 
 @router.put("/deactivate/{item_id}")
 async def deactivate_item(item_id: str, current_user: Annotated[User, Depends(get_current_user)]):
-    if current_user.entity_id is None:
+    if current_user.user_type != UserType.ADMIN and current_user.entity_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You are not associated with any vendor",
         )
-
-    await item_service.authorize_vendor(item_id, current_user.id)
+    if current_user.user_type != UserType.ADMIN:
+        await item_service.authorize_vendor(item_id, current_user.id)
     await item_model.deactivate_item(item_id)
     return {"message": "Item deactivated successfully"}
 
 
 @router.put("/activate/{item_id}")
 async def activate_item(item_id: str, current_user: Annotated[User, Depends(get_current_user)]):
-    if current_user.entity_id is None:
+    if current_user.user_type != UserType.ADMIN and current_user.entity_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You are not associated with any vendor",
         )
-
-    await item_service.authorize_vendor(item_id, current_user.id)
+    if current_user.user_type != UserType.ADMIN:
+        await item_service.authorize_vendor(item_id, current_user.id)
     await item_model.activate_item(item_id)
     return {"message": "Item activated successfully"}
 
@@ -84,13 +84,13 @@ async def update_item(
     item_id: str,
     current_user: Annotated[User, Depends(get_current_user)],
 ):
-    if current_user.entity_id is None:
+    if current_user.user_type != UserType.ADMIN and current_user.entity_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You are not associated with any vendor",
         )
-
-    await item_service.authorize_vendor(item_id, current_user.id)
+    if current_user.user_type != UserType.ADMIN:
+        await item_service.authorize_vendor(item_id, current_user.id)
     await item_model.update_item(updated_item, item_id)
     return {"message": "Item updated successfully"}
 

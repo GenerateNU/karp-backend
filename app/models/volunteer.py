@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from bson import ObjectId
@@ -170,6 +171,20 @@ class VolunteerModel:
         volunteer_data = doc.copy()
         volunteer_data["id"] = str(volunteer_data["_id"])
 
+        # Handle missing birth_date - convert from age if present, otherwise use default
+        if "birth_date" not in volunteer_data:
+            if "age" in volunteer_data:
+                # Calculate birth_date from age (assume current year)
+                age = volunteer_data.pop("age")
+                birth_date = datetime.now() - timedelta(days=age * 365)
+                volunteer_data["birth_date"] = birth_date
+            else:
+                # Default to 25 years ago if neither birth_date nor age is present
+                volunteer_data["birth_date"] = datetime.now() - timedelta(days=25 * 365)
+
+        # Handle missing list fields - default to empty list
+        for field in ["qualifications", "preferred_days", "preferences"]:
+            volunteer_data.setdefault(field, [])
         training_docs = volunteer_data.get("training_documents", [])
 
         # converting dicts into TrainingDocuments objects
