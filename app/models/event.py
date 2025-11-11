@@ -198,8 +198,11 @@ class EventModel:
         elif sort_by == "been_before":
             # Already sorted above if volunteer_event_ids provided
             if volunteer_event_ids is None:
-                # If no volunteer_event_ids, can't sort by "been before", so sort by date
-                events.sort(key=lambda x: x.start_date_time)
+                # If no volunteer_event_ids, can't sort by "been before"
+                raise HTTPException(
+                    status_code=400,
+                    detail='volunteer_event_ids must be provided when sort_by="been_before".'
+                )
 
         return events
 
