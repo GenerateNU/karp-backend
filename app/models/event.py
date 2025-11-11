@@ -154,14 +154,20 @@ class EventModel:
                     hour, minute = map(int, availability_start_time.split(":"))
                     start_time_obj = time(hour, minute)
                 except (ValueError, AttributeError):
-                    pass
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid availability_start_time format: '{availability_start_time}'. Expected format is 'HH:MM' (24-hour)."
+                    )
 
             if availability_end_time:
                 try:
                     hour, minute = map(int, availability_end_time.split(":"))
                     end_time_obj = time(hour, minute)
                 except (ValueError, AttributeError):
-                    pass
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Invalid availability_end_time format: '{availability_end_time}'. Expected format is 'HH:MM' (24-hour)."
+                    )
 
             # Filter events by day and time
             filtered_events = []
