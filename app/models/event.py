@@ -131,12 +131,6 @@ class EventModel:
         events_list = await events_cursor.to_list(length=None)
         events = [Event(**event) for event in events_list]
 
-        # Apply availability filter in Python (more flexible for day/time matching)
-        if availability_days:
-            day_to_weekday = {
-                "Sunday": 6,
-                "Monday": 0,
-                "Tuesday": 1,
         # Move availability filtering into the MongoDB query for efficiency
         if availability_days:
             # Map day names to MongoDB $dayOfWeek numbers (1=Sunday, 2=Monday, ..., 7=Saturday)
