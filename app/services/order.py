@@ -11,6 +11,8 @@ class OrderService:
     _instance: "OrderService" = None
 
     def __init__(self, order_model=order_model, item_model=item_model):
+        if OrderService._instance is not None:
+            raise Exception("This class is a singleton!")
         self.order_model = order_model
         self.item_model = item_model
 

@@ -12,6 +12,8 @@ class VolunteerService:
         volunteer_model=volunteer_model,
         volunteer_achievements_service=volunteer_achievements_service,
     ):
+        if VolunteerService._instance is not None:
+            raise Exception("This class is a singleton!")
         self.volunteer_model = volunteer_model
         self.volunteer_achievements_service = volunteer_achievements_service
 

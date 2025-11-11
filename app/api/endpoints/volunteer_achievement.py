@@ -2,10 +2,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from app.api.endpoints.user import get_current_user
+from app.api.endpoints.user import get_current_admin
 from app.models.volunteer import volunteer_model
 from app.models.volunteer_achievement import volunteer_achievement_model
-from app.schemas.user import User, UserType
+from app.schemas.user import User
 from app.schemas.volunteer_achievement import (
     CreateVolunteerAchievementRequest,
     VolunteerAchievement,
@@ -17,13 +17,8 @@ router = APIRouter()
 @router.post("/new", response_model=VolunteerAchievement)
 async def create_volunteer_achievement(
     volunteer_achievement: Annotated[CreateVolunteerAchievementRequest, Body(...)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_admin)],
 ) -> VolunteerAchievement:
-    if current_user.user_type not in [UserType.ADMIN]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only users with the admin role can assign an achievement to a volunteer",
-        )
     return await volunteer_achievement_model.create_volunteer_achievement(
         volunteer_achievement,
     )
@@ -67,11 +62,6 @@ async def get_volunteer_achievements_by_volunteer(volunteer_id: str) -> list[Vol
 @router.delete("/{volunteer_achievement_id}", response_model=VolunteerAchievement)
 async def delete_volunteer_achievement(
     volunteer_achievement_id: str,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_admin)],
 ) -> VolunteerAchievement:
-    if current_user.user_type not in [UserType.ADMIN]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only users with the admin role can delete a volunteer achievement",
-        )
     return await volunteer_achievement_model.delete_volunteer_achievement(volunteer_achievement_id)

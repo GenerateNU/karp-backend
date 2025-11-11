@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from app.api.endpoints.user import get_current_user
+from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.item import item_model
 from app.models.order import order_model
 from app.models.volunteer import volunteer_model
@@ -35,11 +35,7 @@ async def create_order(
 
 
 @router.get("/all", response_model=list[Order])
-async def get_all_orders(current_user: Annotated[User, Depends(get_current_user)]) -> list[Order]:
-    if current_user.user_type != UserType.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can view all orders"
-        )
+async def get_all_orders(current_user: Annotated[User, Depends(get_current_admin)]) -> list[Order]:
     return await order_model.get_all_orders()
 
 

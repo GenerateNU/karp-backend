@@ -9,6 +9,8 @@ class EventService:
     _instance: "EventService" = None
 
     def __init__(self, event_model=event_model):
+        if EventService._instance is not None:
+            raise Exception("This class is a singleton!")
         self.event_model = event_model
 
     @classmethod

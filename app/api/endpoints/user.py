@@ -21,6 +21,7 @@ from app.schemas.user import (
     User,
     UserRedirectResponse,
     UserResponse,
+    UserType
 )
 from app.utils.user import create_access_token, hash_password, settings, verify_password
 
@@ -105,6 +106,18 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
     return user
+
+
+# Get current admin user
+async def get_current_admin(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    if current_user.user_type != UserType.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can access this endpoint",
+        )
+    return current_user
 
 
 @router.post("/", response_model=UserResponse)

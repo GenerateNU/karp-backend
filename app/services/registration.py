@@ -7,6 +7,8 @@ class RegistrationService:
     _instance: "RegistrationService" = None
 
     def __init__(self, registration_model=registration_model):
+        if RegistrationService._instance is not None:
+            raise Exception("This class is a singleton!")
         self.registration_model = registration_model
 
     @classmethod
