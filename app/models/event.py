@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
 from typing import TYPE_CHECKING, Literal
 
 from bson import ObjectId
@@ -53,9 +53,156 @@ class EventModel:
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
         return Event(**inserted_doc)
 
-    async def get_all_events(self) -> list[Event]:
-        events_list = await self.collection.find({"status": Status.PUBLISHED}).to_list(length=None)
-        return [Event(**event) for event in events_list]
+    async def get_all_events(
+        self,
+        sort_by: (
+            Literal["been_before", "new_additions", "coins_low_to_high", "coins_high_to_low"] | None
+        ) = None,
+        causes: list[str] | None = None,
+        qualifications: list[str] | None = None,
+        availability_days: list[str] | None = None,
+        availability_start_time: str | None = None,
+        availability_end_time: str | None = None,
+        location_city: str | None = None,
+        location_state: str | None = None,
+        location_radius_km: float | None = None,
+        lat: float | None = None,
+        lng: float | None = None,
+        volunteer_event_ids: set[str] | None = None,
+    ) -> list[Event]:
+        # Start with base filter for published events
+        filters: dict = {"status": Status.PUBLISHED}
+
+        # Filter by causes (using keywords field)
+        if causes:
+            cause_filter = {"keywords": {"$in": causes}}
+            if "$and" in filters:
+                filters["$and"].append(cause_filter)
+            else:
+                filters = {"$and": [filters, cause_filter]}
+
+        # Filter by qualifications (using keywords field)
+        if qualifications:
+            qual_filter = {"keywords": {"$in": qualifications}}
+            if "$and" in filters:
+                filters["$and"].append(qual_filter)
+            else:
+                filters = {"$and": [filters, qual_filter]}
+
+        # Filter by availability (days and times)
+        # Note: We'll filter in Python after fetching, as MongoDB date filtering with $expr
+        # can be complex and we need to check day of week and time ranges
+
+        # Filter by location
+        # Note: $near must be the first condition, so we handle it separately
+        location_query = None
+        if lat and lng and location_radius_km:
+            location = Location(type="Point", coordinates=[lng, lat])
+            max_distance_meters = int(location_radius_km * 1000)
+            location_query = {
+                "location": {
+                    "$near": {
+                        "$geometry": location.model_dump(),
+                        "$maxDistance": max_distance_meters,
+                    }
+                }
+            }
+
+        # Build final query - if location filter exists, combine with other filters
+        # Note: $near must be in the query, but we can combine it with $and
+        if location_query:
+            if "$and" in filters:
+                # Flatten: add location_query to existing $and array
+                final_filters = {"$and": filters["$and"] + [location_query]}
+            else:
+                final_filters = {"$and": [filters, location_query]}
+        else:
+            final_filters = filters
+
+        # Get all events matching filters
+        events_cursor = self.collection.find(final_filters)
+        events_list = await events_cursor.to_list(length=None)
+        events = [Event(**event) for event in events_list]
+
+        # Apply availability filter in Python (more flexible for day/time matching)
+        if availability_days:
+            day_to_weekday = {
+                "Sunday": 6,
+                "Monday": 0,
+                "Tuesday": 1,
+                "Wednesday": 2,
+                "Thursday": 3,
+                "Friday": 4,
+                "Saturday": 5,
+            }
+            weekday_numbers = {
+                day_to_weekday[day] for day in availability_days if day in day_to_weekday
+            }
+
+            # Parse time strings if provided
+            start_time_obj = None
+            end_time_obj = None
+            if availability_start_time:
+                try:
+                    hour, minute = map(int, availability_start_time.split(":"))
+                    start_time_obj = time(hour, minute)
+                except (ValueError, AttributeError):
+                    pass
+
+            if availability_end_time:
+                try:
+                    hour, minute = map(int, availability_end_time.split(":"))
+                    end_time_obj = time(hour, minute)
+                except (ValueError, AttributeError):
+                    pass
+
+            # Filter events by day and time
+            filtered_events = []
+            for event in events:
+                # Python weekday(): 0=Monday, 1=Tuesday, ..., 6=Sunday
+                # Our mapping: Sunday=6, Monday=0, Tuesday=1, ..., Saturday=5
+                event_weekday = event.start_date_time.weekday()
+                # Convert: if weekday is 6 (Sunday), keep as 6; otherwise keep as is
+                event_weekday_num = 6 if event_weekday == 6 else event_weekday
+
+                if event_weekday_num in weekday_numbers:
+                    # Check time if provided
+                    if start_time_obj and end_time_obj:
+                        event_start_time = event.start_date_time.time()
+                        event_end_time = event.end_date_time.time()
+                        # Check if event time overlaps with availability window
+                        # Event overlaps if: event starts before availability ends AND event ends after availability starts
+                        if event_start_time <= end_time_obj and event_end_time >= start_time_obj:
+                            filtered_events.append(event)
+                    else:
+                        # No time filter, just check day
+                        filtered_events.append(event)
+
+            events = filtered_events
+
+        # Handle "been before" filter - requires volunteer_event_ids from endpoint
+        if sort_by == "been_before" and volunteer_event_ids is not None:
+            # Separate events into "been before" and "not been before"
+            been_before = [e for e in events if e.id in volunteer_event_ids]
+            not_been_before = [e for e in events if e.id not in volunteer_event_ids]
+
+            # Sort: been before first, then not been before
+            events = been_before + not_been_before
+
+        # Apply sorting
+        if sort_by == "new_additions":
+            events.sort(key=lambda x: x.created_at, reverse=True)
+        elif sort_by == "coins_low_to_high":
+            events.sort(key=lambda x: x.coins)
+        elif sort_by == "coins_high_to_low":
+            events.sort(key=lambda x: x.coins, reverse=True)
+        elif sort_by == "been_before":
+            # Already sorted above if volunteer_event_ids provided
+            if volunteer_event_ids is None:
+                # If no volunteer_event_ids, can't sort by "been before", so sort by date
+                events.sort(key=lambda x: x.start_date_time)
+
+        return events
 
     async def get_events_by_location(self, distance: float, location: Location) -> list[Event]:
         events_list = await self.collection.find(
