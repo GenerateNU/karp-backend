@@ -73,21 +73,28 @@ class EventModel:
         # Start with base filter for published events
         filters: dict = {"status": Status.PUBLISHED}
 
-        # Filter by causes (using keywords field)
-        if causes:
-            cause_filter = {"keywords": {"$in": causes}}
+        # Filter by causes and/or qualifications (using keywords field)
+        keyword_filters = []
+        if causes and qualifications:
+            # Require all keywords from both lists to be present
+            all_keywords = list(set(causes + qualifications))
+            keyword_filter = {"keywords": {"$all": all_keywords}}
             if "$and" in filters:
-                filters["$and"].append(cause_filter)
+                filters["$and"].append(keyword_filter)
             else:
-                filters = {"$and": [filters, cause_filter]}
-
-        # Filter by qualifications (using keywords field)
-        if qualifications:
-            qual_filter = {"keywords": {"$in": qualifications}}
+                filters = {"$and": [filters, keyword_filter]}
+        elif causes:
+            keyword_filter = {"keywords": {"$all": causes}}
             if "$and" in filters:
-                filters["$and"].append(qual_filter)
+                filters["$and"].append(keyword_filter)
             else:
-                filters = {"$and": [filters, qual_filter]}
+                filters = {"$and": [filters, keyword_filter]}
+        elif qualifications:
+            keyword_filter = {"keywords": {"$all": qualifications}}
+            if "$and" in filters:
+                filters["$and"].append(keyword_filter)
+            else:
+                filters = {"$and": [filters, keyword_filter]}
 
         # Filter by availability (days and times)
         # Note: We'll filter in Python after fetching, as MongoDB date filtering with $expr
