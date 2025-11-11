@@ -122,11 +122,9 @@ async def get_events(
             location = await geocoding_service.location_to_coordinates(address)
             lat = location.coordinates[1]
             lng = location.coordinates[0]
-        except HTTPException:
-            # If geocoding fails, continue without location filter
-            lat = None
-            lng = None
-            location_radius_km = None
+        except HTTPException as e:
+            # If geocoding fails, inform the user by re-raising the exception
+            raise e
 
     # Get volunteer events if needed for "been before" filter
     volunteer_event_ids: set[str] | None = None
