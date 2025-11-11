@@ -65,8 +65,6 @@ class EventModel:
         availability_days: list[str] | None = None,
         availability_start_time: str | None = None,
         availability_end_time: str | None = None,
-        location_city: str | None = None,
-        location_state: str | None = None,
         location_radius_km: float | None = None,
         lat: float | None = None,
         lng: float | None = None,
