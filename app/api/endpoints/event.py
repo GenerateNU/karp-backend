@@ -148,8 +148,6 @@ async def get_events(
         availability_days=availability_days,
         availability_start_time=availability_start_time,
         availability_end_time=availability_end_time,
-        location_city=location_city,
-        location_state=location_state,
         location_radius_km=location_radius_km,
         lat=lat,
         lng=lng,
