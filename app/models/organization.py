@@ -35,66 +35,6 @@ class OrganizationModel:
 
     async def get_all_organizations(
         self,
-        lat: float | None = None,
-        lng: float | None = None,
-        distance_km: float | None = None,
-    ) -> list[Organization]:
-        filters = {"status": Status.APPROVED}
-        if lat and lng and distance_km:
-            location = Location(type="Point", coordinates=[lng, lat])
-            distance = int(distance_km * 1000)
-            filters["location"] = {
-                "$near": {"$geometry": location.model_dump(), "$maxDistance": distance}
-            }
-        orgs_list = await self.collection.find(filters).to_list(length=None)
-
-        return [Organization(**org) for org in orgs_list]
-
-    async def get_organization_by_id(self, id: str) -> Organization:
-        org = await self.collection.find_one({"_id": ObjectId(id), "status": Status.APPROVED})
-
-        if not org:
-            raise HTTPException(
-                status_code=404, detail="Organization not found or it is not approved"
-            )
-        if org:
-            return Organization(**org)
-        return None
-
-    async def create_organization(
-        self, organization: CreateOrganizationRequest, user_id: str, location: Location
-    ) -> Organization:
-        org_data = organization.model_dump()
-        org_data["status"] = Status.IN_REVIEW
-        org_data["location"] = location.model_dump()
-
-        result = await self.collection.insert_one(org_data)
-
-        await user_model.update_entity_id_by_id(user_id, str(result.inserted_id))
-
-        inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
-
-        return Organization(**inserted_doc)
-
-    async def update_organization(
-        self, org_id: str, organization: UpdateOrganizationRequest, location: Location | None = None
-    ) -> Organization:
-        org_data = organization.model_dump(exclude_unset=True)
-        if location:
-            org_data["location"] = location.model_dump()
-        await self.collection.update_one({"_id": ObjectId(org_id)}, {"$set": org_data})
-
-        updated_doc = await self.collection.find_one({"_id": ObjectId(org_id)})
-        return Organization(**updated_doc)
-
-    async def delete_organization(self, id: str) -> None:
-        await self.collection.update_one(
-            {"_id": ObjectId(id)}, {"$set": {"status": Status.DELETED}}
-        )
-
-    async def search_organizations(
-        self,
-        q: str | None = None,
         sort_by: Literal["name", "status", "distance"] = "name",
         sort_dir: Literal["asc", "desc"] = "asc",
         statuses: list[Status] | None = None,
@@ -104,6 +44,7 @@ class OrganizationModel:
         page: int = 1,
         limit: int = 20,
     ) -> list[Organization]:
+
         filters: dict | None = None
         if statuses:
             filters_status = {"status": {"$in": list(statuses)}}
@@ -113,15 +54,6 @@ class OrganizationModel:
             filters_status = {"status": Status.APPROVED}
 
         filters = filters_status
-
-        if q:
-            filters_q = {
-                "$or": [
-                    {"name": {"$regex": q, "$options": "i"}},
-                    {"description": {"$regex": q, "$options": "i"}},
-                ]
-            }
-            filters = {"$and": [filters, filters_q]} if filters else filters_q
 
         use_geo = False
         if lat is not None and lng is not None and distance_km is not None:
@@ -187,6 +119,78 @@ class OrganizationModel:
                 .skip(skip)
                 .limit(safe_limit)
             )
+
+        # Changed this line - convert cursor results to Organization objects
+        docs = await cursor.to_list(length=None)
+        return [Organization(**d) for d in docs]
+
+    async def get_organization_by_id(self, id: str) -> Organization:
+        org = await self.collection.find_one({"_id": ObjectId(id), "status": Status.APPROVED})
+
+        if not org:
+            raise HTTPException(
+                status_code=404, detail="Organization not found or it is not approved"
+            )
+        if org:
+            return Organization(**org)
+        return None
+
+    async def create_organization(
+        self, organization: CreateOrganizationRequest, user_id: str, location: Location
+    ) -> Organization:
+        org_data = organization.model_dump()
+        org_data["status"] = Status.IN_REVIEW
+        org_data["location"] = location.model_dump()
+
+        result = await self.collection.insert_one(org_data)
+
+        await user_model.update_entity_id_by_id(user_id, str(result.inserted_id))
+
+        inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
+
+        return Organization(**inserted_doc)
+
+    async def update_organization(
+        self, org_id: str, organization: UpdateOrganizationRequest, location: Location | None = None
+    ) -> Organization:
+        org_data = organization.model_dump(exclude_unset=True)
+        if location:
+            org_data["location"] = location.model_dump()
+        await self.collection.update_one({"_id": ObjectId(org_id)}, {"$set": org_data})
+
+        updated_doc = await self.collection.find_one({"_id": ObjectId(org_id)})
+        return Organization(**updated_doc)
+
+    async def delete_organization(self, id: str) -> None:
+        await self.collection.update_one(
+            {"_id": ObjectId(id)}, {"$set": {"status": Status.DELETED}}
+        )
+
+    async def search_organizations(
+        self,
+        q: str | None = None,
+        page: int = 1,
+        limit: int = 20,
+    ) -> list[Organization]:
+        filters = {}
+
+        if q:
+            filters = {
+                "$or": [
+                    {"name": {"$regex": q, "$options": "i"}},
+                    {"description": {"$regex": q, "$options": "i"}},
+                ]
+            }
+
+        skip = max(0, (page - 1) * max(1, limit))
+        safe_limit = max(1, min(200, limit))
+
+        cursor = (
+            self.collection.find(filters)
+            .sort([("name", 1), ("_id", 1)])
+            .skip(skip)
+            .limit(safe_limit)
+        )
 
         docs = await cursor.to_list(length=None)
         return [Organization(**d) for d in docs]
