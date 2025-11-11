@@ -164,8 +164,7 @@ class EventModel:
                 # Python weekday(): 0=Monday, 1=Tuesday, ..., 6=Sunday
                 # Our mapping: Sunday=6, Monday=0, Tuesday=1, ..., Saturday=5
                 event_weekday = event.start_date_time.weekday()
-                # Convert: if weekday is 6 (Sunday), keep as 6; otherwise keep as is
-                event_weekday_num = 6 if event_weekday == 6 else event_weekday
+                event_weekday_num = event_weekday
 
                 if event_weekday_num in weekday_numbers:
                     # Check time if provided
