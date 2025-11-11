@@ -89,11 +89,17 @@ async def get_events(
     ] = None,
     availability_start_time: Annotated[
         str | None,
-        Query(description="Start time for availability (HH:MM format, 24-hour)"),
+        Query(
+            description="Start time for availability (HH:MM format, 24-hour)",
+            pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+        ),
     ] = None,
     availability_end_time: Annotated[
         str | None,
-        Query(description="End time for availability (HH:MM format, 24-hour)"),
+        Query(
+            description="End time for availability (HH:MM format, 24-hour)",
+            pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+        ),
     ] = None,
     # Location filter
     location_city: Annotated[str | None, Query(description="City name for location filter")] = None,
