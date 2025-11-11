@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
-from app.api.endpoints.user import get_current_user
+from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.event import event_model
 from app.models.organization import org_model
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
@@ -101,13 +101,8 @@ async def create_event(
 
 @router.delete("/clear", response_model=None)
 async def clear_events(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_admin)],
 ) -> None:
-    if current_user.user_type != UserType.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can delete all events",
-        )
     return await event_model.delete_all_events()
 
 
