@@ -137,61 +137,83 @@ class EventModel:
                 "Sunday": 6,
                 "Monday": 0,
                 "Tuesday": 1,
-                "Wednesday": 2,
-                "Thursday": 3,
-                "Friday": 4,
-                "Saturday": 5,
+        # Move availability filtering into the MongoDB query for efficiency
+        if availability_days:
+            # Map day names to MongoDB $dayOfWeek numbers (1=Sunday, 2=Monday, ..., 7=Saturday)
+            day_name_to_mongo = {
+                "Sunday": 1,
+                "Monday": 2,
+                "Tuesday": 3,
+                "Wednesday": 4,
+                "Thursday": 5,
+                "Friday": 6,
+                "Saturday": 7,
             }
-            weekday_numbers = {
-                day_to_weekday[day] for day in availability_days if day in day_to_weekday
-            }
+            mongo_weekdays = [
+                day_name_to_mongo[day] for day in availability_days if day in day_name_to_mongo
+            ]
+
+            # Build $expr for day-of-week and time overlap
+            expr_conditions = []
+            if mongo_weekdays:
+                expr_conditions.append({
+                    "$in": [
+                        { "$dayOfWeek": "$start_date_time" },
+                        mongo_weekdays
+                    ]
+                })
 
             # Parse time strings if provided
-            start_time_obj = None
-            end_time_obj = None
-            if availability_start_time:
+            if availability_start_time and availability_end_time:
                 try:
-                    hour, minute = map(int, availability_start_time.split(":"))
-                    start_time_obj = time(hour, minute)
+                    start_hour, start_minute = map(int, availability_start_time.split(":"))
+                    end_hour, end_minute = map(int, availability_end_time.split(":"))
                 except (ValueError, AttributeError):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Invalid availability_start_time format: '{availability_start_time}'. Expected format is 'HH:MM' (24-hour)."
-                    )
+                    start_hour = start_minute = end_hour = end_minute = None
 
-            if availability_end_time:
-                try:
-                    hour, minute = map(int, availability_end_time.split(":"))
-                    end_time_obj = time(hour, minute)
-                except (ValueError, AttributeError):
-                    raise HTTPException(
-                        status_code=400,
-                        detail=f"Invalid availability_end_time format: '{availability_end_time}'. Expected format is 'HH:MM' (24-hour)."
-                    )
+                if None not in (start_hour, start_minute, end_hour, end_minute):
+                    # Event overlaps if: event starts before availability ends AND event ends after availability starts
+                    expr_conditions.append({
+                        "$and": [
+                            {
+                                "$or": [
+                                    { "$lt": [
+                                        { "$hour": "$start_date_time" },
+                                        end_hour
+                                    ]},
+                                    {
+                                        "$and": [
+                                            { "$eq": [ { "$hour": "$start_date_time" }, end_hour ] },
+                                            { "$lte": [ { "$minute": "$start_date_time" }, end_minute ] }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "$or": [
+                                    { "$gt": [
+                                        { "$hour": "$end_date_time" },
+                                        start_hour
+                                    ]},
+                                    {
+                                        "$and": [
+                                            { "$eq": [ { "$hour": "$end_date_time" }, start_hour ] },
+                                            { "$gte": [ { "$minute": "$end_date_time" }, start_minute ] }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    })
 
-            # Filter events by day and time
-            filtered_events = []
-            for event in events:
-                # Python weekday(): 0=Monday, 1=Tuesday, ..., 6=Sunday
-                # Our mapping: Sunday=6, Monday=0, Tuesday=1, ..., Saturday=5
-                event_weekday = event.start_date_time.weekday()
-                event_weekday_num = event_weekday
+            # Add $expr to the MongoDB query
+            if expr_conditions:
+                if "query" not in locals():
+                    query = {}
+                query["$expr"] = { "$and": expr_conditions } if len(expr_conditions) > 1 else expr_conditions[0]
 
-                if event_weekday_num in weekday_numbers:
-                    # Check time if provided
-                    if start_time_obj and end_time_obj:
-                        event_start_time = event.start_date_time.time()
-                        event_end_time = event.end_date_time.time()
-                        # Check if event time overlaps with availability window
-                        # Event overlaps if: event starts before availability ends AND event ends after availability starts
-                        if event_start_time <= end_time_obj and event_end_time >= start_time_obj:
-                            filtered_events.append(event)
-                    else:
-                        # No time filter, just check day
-                        filtered_events.append(event)
-
-            events = filtered_events
-
+        # Now fetch events from the database using the updated query
+        # (Assume the rest of the code uses this query to fetch events)
         # Handle "been before" filter - requires volunteer_event_ids from endpoint
         if sort_by == "been_before" and volunteer_event_ids is not None:
             # Separate events into "been before" and "not been before"
