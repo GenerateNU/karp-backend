@@ -126,6 +126,9 @@ async def get_events(
             # If geocoding fails, inform the user by re-raising the exception
             raise e
 
+    # If geocoding succeeded and radius is missing, set a sensible default (e.g., 25 km)
+    if (lat is not None and lng is not None) and location_radius_km is None:
+        location_radius_km = 25
     # Get volunteer events if needed for "been before" filter
     volunteer_event_ids: set[str] | None = None
     if sort_by == "been_before" and volunteer_id:
