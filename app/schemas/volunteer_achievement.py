@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from bson import ObjectId
 from pydantic import AliasChoices, BaseModel, Field, field_validator
@@ -25,3 +25,4 @@ class VolunteerAchievement(BaseModel):
 class CreateVolunteerAchievementRequest(BaseModel):
     achievement_id: str
     volunteer_id: str
+    received_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

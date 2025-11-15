@@ -1,9 +1,12 @@
+from app.core.cache_constants import VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE
 from app.models.achievement import achievement_model
 from app.models.volunteer_achievement import (
     CreateVolunteerAchievementRequest,
+    VolunteerAchievement,
     volunteer_achievement_model,
 )
-from app.schemas.achievement import Achievement
+from app.schemas.achievement import VolunteerReceivedAchievementResponse
+from app.services.cache import cache_service
 
 
 class VolunteerAchievementsService:
@@ -23,7 +26,37 @@ class VolunteerAchievementsService:
             VolunteerAchievementsService._instance = cls()
         return VolunteerAchievementsService._instance
 
+    async def get_volunteer_achievements_by_volunteer(
+        self, volunteer_id: str
+    ) -> list[VolunteerAchievement]:
+        return await self.volunteer_achievement_model.get_volunteer_achievements_by_volunteer(
+            volunteer_id
+        )
+
+    async def get_volunteer_achievements_by_achievement_id(
+        self, achievement_id: str
+    ) -> list[VolunteerAchievement]:
+        return await self.volunteer_achievement_model.get_volunteer_achievements_by_achievement_id(
+            achievement_id
+        )
+
+    async def delete_all_volunteer_achievements_by_achievement_id(self, achievement_id: str):
+        return (
+            await self.volunteer_achievement_model.delete_all_volunteer_achievements_by_achievement(
+                achievement_id
+            )
+        )
+
     async def add_achievement_to_volunteer(self, volunteer_id: str, achievement_id: str):
+        existing_achievements = (
+            await self.volunteer_achievement_model.get_volunteer_achievements_by_volunteer(
+                volunteer_id
+            )
+        )
+
+        if achievement_id in [achievement.achievement_id for achievement in existing_achievements]:
+            return
+
         volunteer_achievement_request = CreateVolunteerAchievementRequest(
             volunteer_id=volunteer_id, achievement_id=achievement_id
         )
@@ -31,13 +64,34 @@ class VolunteerAchievementsService:
             volunteer_achievement_request
         )
 
-    async def get_achievements_by_level(self, level: int) -> Achievement:
-        return await self.achievement_model.get_achievements_by_level(level)
+    async def get_volunteer_received_achievements_by_volunteer(
+        self, volunteer_id: str
+    ) -> list[VolunteerReceivedAchievementResponse]:
+        return (
+            await self.volunteer_achievement_model.get_volunteer_received_achievements_by_volunteer(
+                volunteer_id
+            )
+        )
 
-    async def add_level_up_achievement(self, volunteer_id: str, level: int) -> None:
-        achievements = await self.get_achievements_by_level(level)
-        for achievement in achievements:
-            await self.add_achievement_to_volunteer(volunteer_id, achievement["id"])
+    async def create_volunteer_achievement(
+        self, volunteer_achievement: CreateVolunteerAchievementRequest
+    ) -> VolunteerAchievement:
+        await cache_service.delete(
+            VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE, volunteer_achievement.volunteer_id
+        )
+        return await self.volunteer_achievement_model.create_volunteer_achievement(
+            volunteer_achievement
+        )
+
+    async def delete_volunteer_achievement(self, volunteer_achievement_id: str) -> None:
+        volunteer_id = await self.volunteer_achievement_model.get_volunteer_achievement_by_id(
+            volunteer_achievement_id
+        )
+        await cache_service.delete(VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE, volunteer_id)
+
+        return await self.volunteer_achievement_model.delete_volunteer_achievement(
+            volunteer_achievement_id
+        )
 
 
 volunteer_achievements_service = VolunteerAchievementsService.get_instance()
