@@ -7,3 +7,4 @@ class Status(str, Enum):
     CANCELLED = "CANCELLED"
     DRAFT = "DRAFT"
     DELETED = "DELETED"
+    APPROVED = "APPROVED"
