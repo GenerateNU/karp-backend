@@ -30,7 +30,7 @@ class ItemModel:
         item_data["time_posted"] = datetime.now()
         item_data["vendor_id"] = ObjectId(vendor_id)
         item_data["status"] = ItemStatus.ACTIVE
-        item_data["price"] = item.price
+        item_data["price"] = int(item.dollar_price * 100)
 
         result = await self.collection.insert_one(item_data)
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
@@ -113,6 +113,10 @@ class ItemModel:
 
         # excludes updating fields not provided
         updated_data = updated_item.model_dump(exclude_unset=True)
+
+        if "dollar_price" in updated_data:
+            updated_data["price"] = int(updated_data["dollar_price"] * 100)
+            del updated_data["dollar_price"]
 
         result = await db["items"].update_one({"_id": item_obj_id}, {"$set": updated_data})
 

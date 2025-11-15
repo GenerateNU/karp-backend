@@ -55,12 +55,12 @@ class ItemSortParam(str, Enum):
 class CreateItemRequest(BaseModel):
     name: str
     expiration: datetime
-    price: int
+    dollar_price: float
     status: ItemStatus = ItemStatus.PUBLISHED
 
 
 class UpdateItemRequest(BaseModel):
     name: str | None = None
-    price: int | None = None
+    dollar_price: float | None = None
     expiration: datetime | None = None
     status: ItemStatus | None = None
