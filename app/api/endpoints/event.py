@@ -20,8 +20,137 @@ router = APIRouter()
 
 
 @router.get("/all", response_model=list[Event])
-async def get_events() -> list[Event]:
-    return await event_model.get_all_events()
+async def get_events(
+    # Sort filters
+    sort_by: Annotated[
+        Literal["been_before", "new_additions", "coins_low_to_high", "coins_high_to_low"],
+        Query(description="Sort order for events"),
+    ] = None,
+    # Cause filters (pick up to 5)
+    causes: Annotated[
+        list[
+            Literal[
+                "Animals",
+                "Arts & Culture",
+                "Climate Change",
+                "Community",
+                "Disability",
+                "Disaster Relief",
+                "Education",
+                "Food Security",
+                "Health & Medicine",
+                "Human Rights",
+                "Mental Health",
+                "Poverty",
+                "Research",
+                "Seniors & Retirement",
+            ]
+        ]
+        | None,
+        Query(description="Filter by causes (max 5)", max_length=5),
+    ] = None,
+    # Qualification filters
+    qualifications: Annotated[
+        list[
+            Literal[
+                "Club Leader/Member",
+                "Camp Counselor",
+                "Event Volunteer/Organizer",
+                "Environment Project",
+                "First Aid Certified",
+                "Food Safety Certified",
+                "Google/Microsoft Tools",
+                "Graphic Design",
+                "Lifeguard Certified",
+                "STEM or Robotics",
+                "Student Council",
+            ]
+        ]
+        | None,
+        Query(description="Filter by required qualifications"),
+    ] = None,
+    # Availability filters (days and times)
+    availability_days: Annotated[
+        list[
+            Literal[
+                "Sunday",
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+            ]
+        ]
+        | None,
+        Query(description="Filter by available days"),
+    ] = None,
+    availability_start_time: Annotated[
+        str | None,
+        Query(
+            description="Start time for availability (HH:MM format, 24-hour)",
+            pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+        ),
+    ] = None,
+    availability_end_time: Annotated[
+        str | None,
+        Query(
+            description="End time for availability (HH:MM format, 24-hour)",
+            pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+        ),
+    ] = None,
+    # Location filter
+    location_city: Annotated[str | None, Query(description="City name for location filter")] = None,
+    location_state: Annotated[
+        str | None, Query(description="State abbreviation for location filter")
+    ] = None,
+    location_radius_km: Annotated[
+        float | None, Query(ge=0, le=200, description="Radius in kilometers")
+    ] = None,
+    lat: Annotated[float | None, Query(ge=-90, le=90, description="Latitude")] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180, description="Longitude")] = None,
+    # Volunteer ID for "been before" filter
+    volunteer_id: Annotated[
+        str | None, Query(description="Volunteer ID for 'been before' filter")
+    ] = None,
+) -> list[Event]:
+    # If city/state provided but no lat/lng, geocode the location
+    if (location_city or location_state) and not (lat and lng):
+        if location_city and location_state:
+            address = f"{location_city}, {location_state}"
+        elif location_city:
+            address = location_city
+        else:
+            address = location_state
+        try:
+            location = await geocoding_service.location_to_coordinates(address)
+            lat = location.coordinates[1]
+            lng = location.coordinates[0]
+        except HTTPException as e:
+            # If geocoding fails, inform the user by re-raising the exception
+            raise e
+
+    # If geocoding succeeded and radius is missing, set a sensible default (e.g., 25 km)
+    if (lat is not None and lng is not None) and location_radius_km is None:
+        location_radius_km = 25
+    # Get volunteer events if needed for "been before" filter
+    volunteer_event_ids: set[str] | None = None
+    if sort_by == "been_before" and volunteer_id:
+        volunteer_events = await registration_model.get_events_by_volunteer(volunteer_id, None)
+        volunteer_event_ids = {event.id for event in volunteer_events}
+
+    return await event_model.get_all_events(
+        sort_by=sort_by,
+        causes=causes,
+        qualifications=qualifications,
+        availability_days=availability_days,
+        availability_start_time=availability_start_time,
+        availability_end_time=availability_end_time,
+        location_radius_km=location_radius_km,
+        lat=lat,
+        lng=lng,
+        volunteer_event_ids=volunteer_event_ids,
+    )
 
 
 @router.get("/organization/{organization_id}", response_model=list[Event])
