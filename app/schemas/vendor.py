@@ -7,7 +7,7 @@ from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 class VendorStatus(str, Enum):
     APPROVED = "APPROVED"
-    IN_REVIEW = "IN_REVIEW"
+    PENDING = "PENDING"
     REJECTED = "REJECTED"
     DELETED = "DELETED"
 
@@ -20,8 +20,7 @@ class Vendor(BaseModel):
     )
     name: str
     business_type: str
-    status: VendorStatus = VendorStatus.IN_REVIEW
-    approved: bool = False
+    status: VendorStatus = VendorStatus.PENDING
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
 

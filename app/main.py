@@ -1,7 +1,11 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from redis.asyncio import Redis
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.endpoints import (
     achievement,
@@ -17,6 +21,7 @@ from app.api.endpoints import (
     volunteer,
     volunteer_achievement,
 )
+from app.core.config import settings
 from app.models.event import EventModel
 from app.models.organization import OrganizationModel
 
@@ -28,10 +33,28 @@ async def lifespan(app: FastAPI):
     org_model = OrganizationModel.get_instance()
     await event_model.create_indexes()
     await org_model.create_indexes()
+
+    # Initialize cache
+    redis_backend = RedisBackend(Redis.from_url(settings.REDIS_URL))
+
+    # Initialize FastAPICache
+    FastAPICache.init(
+        redis_backend,
+    )
     yield
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
 
 # CORS configuration
 origins = [
@@ -41,6 +64,7 @@ origins = [
     "http://localhost:3000",  # Add your frontend URL here
 ]
 
+app.add_middleware(NoCacheMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins in development

@@ -6,10 +6,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.event import event_model
 from app.models.organization import org_model
-from app.models.registration import registration_model
-from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
+from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventStatusRequest
 from app.schemas.s3 import PresignedUrlResponse
-from app.schemas.status import Status
 from app.schemas.user import User, UserType
 from app.services.event import event_service
 from app.services.geocoding import geocoding_service
@@ -165,10 +163,12 @@ async def get_events_by_org(organization_id: str) -> list[Event]:
 async def search_events(
     q: Annotated[str | None, Query(description="Search term (name, description, keywords)")] = None,
     sort_by: Annotated[
-        Literal["start_date_time", "name", "coins", "max_volunteers"], Query()
+        Literal["start_date_time", "name", "coins", "max_volunteers", "created_at"], Query()
     ] = "start_date_time",
     sort_dir: Annotated[Literal["asc", "desc"], Query()] = "asc",
-    statuses: Annotated[list[Status] | None, Query(description="Allowed event statuses")] = None,
+    statuses: Annotated[
+        list[EventStatus] | None, Query(description="Allowed event statuses")
+    ] = None,
     organization_id: Annotated[str | None, Query()] = None,
     age: Annotated[
         int | None, Query(ge=0, description="User age for eligibility filtering")
@@ -213,7 +213,7 @@ async def create_event(
                 detail="You must be associated with an organization to create an event",
             )
         organization = await org_model.get_organization_by_id(current_user.entity_id)
-        if organization.status != Status.APPROVED:
+        if organization.status != EventStatus.APPROVED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Your organization is not approved to create events",
@@ -226,7 +226,18 @@ async def create_event(
         )
 
     coordinates = await geocoding_service.location_to_coordinates(event.address)
-    return await event_model.create_event(event, current_user.id, coordinates)
+
+    ai_difficulty_coefficient = await event_service.estimate_event_difficulty(
+        event.description or ""
+    )
+
+    return await event_model.create_event(
+        event,
+        current_user.id,
+        current_user.entity_id,
+        coordinates,
+        ai_difficulty_coefficient=ai_difficulty_coefficient,
+    )
 
 
 @router.delete("/clear", response_model=None)
@@ -246,7 +257,7 @@ async def get_event_by_id(event_id: str) -> Event:
 
 
 @router.put("/{event_id}", response_model=Event | None)
-async def update_event_status(
+async def update_event(
     event_id: str,
     event: Annotated[UpdateEventStatusRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -266,7 +277,7 @@ async def update_event_status(
     # Admins can bypass org authorization
     if current_user.user_type != UserType.ADMIN:
         await event_service.authorize_org(event_id, current_user.entity_id)
-    updated_event = await event_model.update_event_status(event_id, event)
+    updated_event = await event_model.update_event(event_id, event)
     return updated_event
 
 
@@ -339,3 +350,23 @@ async def get_event_image(event_id: str):
         event.image_s3_key, content_type=f"image/{file_type}"
     )
     return {"url": presigned_url}
+
+
+@router.get("/{event_id}/generate-qr-code")
+async def get_event_qr_codes(
+    event_id: str, current_user: Annotated[User, Depends(get_current_user)]
+):
+    event = await event_model.get_event_by_id(event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only users with organization role can get an event qr code",
+        )
+
+    if current_user.user_type != UserType.ADMIN:
+        await event_service.authorize_org(event_id, current_user.entity_id)
+
+    return await event_service.get_event_qr_codes(event)

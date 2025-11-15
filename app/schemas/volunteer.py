@@ -24,6 +24,8 @@ class TrainingDocumentType(str, Enum):  # may use later
 class TrainingDocument(BaseModel):
     file_type: str  # str for now bc we will have a dropdown for the frontend
     image_s3_key: str
+
+
 class Qualification(str, Enum):
     CPR_CERTIFIED = "CPR Certified"
     ELDER_CARE = "Elder Care"
@@ -58,6 +60,8 @@ class Volunteer(BaseModel):
     is_active: bool = True
     experience: int = 0
     location: Location
+    image_s3_key: str | None = None
+    current_level: int = 0
 
     class Config:
         from_attributes = True
@@ -86,3 +90,6 @@ class UpdateVolunteerRequest(BaseModel):
     preferred_days: list[DayOfWeek] | None = None
     is_active: bool | None = None
     location: Location | None = None
+    phone: str | None = None
+    experience: int | None = None
+    current_level: int | None = None

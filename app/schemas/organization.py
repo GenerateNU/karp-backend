@@ -6,9 +6,9 @@ from pydantic import AliasChoices, BaseModel, Field, field_validator
 from app.schemas.location import Location
 
 
-class Status(str, Enum):
+class OrganizationStatus(str, Enum):
     APPROVED = "APPROVED"
-    IN_REVIEW = "IN_REVIEW"
+    PENDING = "PENDING"
     REJECTED = "REJECTED"
     DELETED = "DELETED"
 
@@ -17,7 +17,7 @@ class Organization(BaseModel):
     id: str = Field(validation_alias=AliasChoices("_id", "id"), serialization_alias="id")
     name: str
     description: str
-    status: Status
+    status: OrganizationStatus
     location: Location | None = None
 
     class Config:
@@ -40,5 +40,5 @@ class CreateOrganizationRequest(BaseModel):
 class UpdateOrganizationRequest(BaseModel):
     name: str | None = None
     description: str | None = None
-    status: Status | None = None
+    status: OrganizationStatus | None = None
     address: str | None = None
