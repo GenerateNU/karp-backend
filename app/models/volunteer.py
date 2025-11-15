@@ -152,6 +152,18 @@ class VolunteerModel:
             {"_id": ObjectId(volunteer_id)}, {"$set": {"is_active": False}}
         )
 
+    async def update_volunteer_image(self, volunteer_id: str, s3_key: str) -> str:
+        await self.collection.update_one(
+            {"_id": ObjectId(volunteer_id)}, {"$set": {"image_s3_key": s3_key}}
+        )
+        return s3_key
+
+    async def get_volunteer_image_key(self, volunteer_id: str) -> str | None:
+        volunteer = await self.collection.find_one(
+            {"_id": ObjectId(volunteer_id)}, {"image_s3_key": 1}
+        )
+        return volunteer.get("image_s3_key") if volunteer else None
+
     async def update_volunteer(
         self, volunteer_id: str, volunteer: UpdateVolunteerRequest
     ) -> Volunteer:

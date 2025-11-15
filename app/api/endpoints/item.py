@@ -29,6 +29,7 @@ async def post_item(
 
     vendor = await vendor_model.get_vendor_by_id(current_user.entity_id)
     if vendor.status != VendorStatus.APPROVED:
+        print("vendor is not approved!")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Your vendor is not approved to create items",
@@ -61,7 +62,7 @@ async def deactivate_item(item_id: str, current_user: Annotated[User, Depends(ge
             detail="You are not associated with any vendor",
         )
     if current_user.user_type != UserType.ADMIN:
-        await item_service.authorize_vendor(item_id, current_user.id)
+        await item_service.authorize_vendor(item_id, current_user.entity_id)
     await item_model.deactivate_item(item_id)
     return {"message": "Item deactivated successfully"}
 
@@ -74,7 +75,7 @@ async def activate_item(item_id: str, current_user: Annotated[User, Depends(get_
             detail="You are not associated with any vendor",
         )
     if current_user.user_type != UserType.ADMIN:
-        await item_service.authorize_vendor(item_id, current_user.id)
+        await item_service.authorize_vendor(item_id, current_user.entity_id)
     await item_model.activate_item(item_id)
     return {"message": "Item activated successfully"}
 
@@ -91,7 +92,7 @@ async def update_item(
             detail="You are not associated with any vendor",
         )
     if current_user.user_type != UserType.ADMIN:
-        await item_service.authorize_vendor(item_id, current_user.id)
+        await item_service.authorize_vendor(item_id, current_user.entity_id)
     await item_model.update_item(updated_item, item_id)
     return {"message": "Item updated successfully"}
 
