@@ -67,7 +67,7 @@ class OrganizationModel:
         self, organization: CreateOrganizationRequest, user_id: str, location: Location
     ) -> Organization:
         org_data = organization.model_dump()
-        org_data["status"] = OrganizationStatus.IN_REVIEW
+        org_data["status"] = OrganizationStatus.PENDING
         org_data["location"] = location.model_dump()
 
         result = await self.collection.insert_one(org_data)

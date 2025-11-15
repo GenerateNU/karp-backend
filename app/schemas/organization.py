@@ -8,7 +8,7 @@ from app.schemas.location import Location
 
 class OrganizationStatus(str, Enum):
     APPROVED = "APPROVED"
-    IN_REVIEW = "IN_REVIEW"
+    PENDING = "PENDING"
     REJECTED = "REJECTED"
     DELETED = "DELETED"
 
