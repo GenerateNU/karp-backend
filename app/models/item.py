@@ -30,7 +30,7 @@ class ItemModel:
         item_data["time_posted"] = datetime.now()
         item_data["vendor_id"] = ObjectId(vendor_id)
         item_data["status"] = ItemStatus.ACTIVE
-        item_data["price"] = 30  # set to default 30 for now
+        item_data["price"] = item.price
 
         result = await self.collection.insert_one(item_data)
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})

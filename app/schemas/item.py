@@ -55,6 +55,8 @@ class ItemSortParam(str, Enum):
 class CreateItemRequest(BaseModel):
     name: str
     expiration: datetime
+    price: int
+    status: ItemStatus = ItemStatus.PUBLISHED
 
 
 class UpdateItemRequest(BaseModel):
