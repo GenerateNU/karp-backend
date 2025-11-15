@@ -4,7 +4,7 @@ from bson import ObjectId
 from fastapi import HTTPException
 
 from app.database.mongodb import db
-from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStatusRequest
+from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventStatusRequest
 from app.schemas.location import Location
 
 if TYPE_CHECKING:
@@ -75,7 +75,9 @@ class EventModel:
         return Event(**inserted_doc)
 
     async def get_all_events(self) -> list[Event]:
-        events_list = await self.collection.find({"status": Status.PUBLISHED}).to_list(length=None)
+        events_list = await self.collection.find({"status": EventStatus.PUBLISHED}).to_list(
+            length=None
+        )
         return [Event(**event) for event in events_list]
 
     async def get_events_by_location(self, distance: float, location: Location) -> list[Event]:
@@ -120,26 +122,26 @@ class EventModel:
             raise HTTPException(status_code=404, detail="Event not found")
 
         status = event["status"]
-        if status in [Status.DRAFT, Status.COMPLETED]:
+        if status in [EventStatus.DRAFT, EventStatus.COMPLETED]:
             await self.collection.update_one(
-                {"_id": ObjectId(event_id)}, {"$set": {"status": Status.DELETED}}
+                {"_id": ObjectId(event_id)}, {"$set": {"status": EventStatus.DELETED}}
             )
-        elif status in [Status.PUBLISHED]:
+        elif status in [EventStatus.PUBLISHED]:
             await self.collection.update_one(
-                {"_id": ObjectId(event_id)}, {"$set": {"status": Status.CANCELLED}}
+                {"_id": ObjectId(event_id)}, {"$set": {"status": EventStatus.CANCELLED}}
             )
         else:
             raise HTTPException(status_code=400, detail="Event cannot be deleted")
 
     async def delete_all_events(self) -> None:
-        await self.collection.update_many({}, {"$set": {"status": Status.DELETED}})
+        await self.collection.update_many({}, {"$set": {"status": EventStatus.DELETED}})
 
     async def search_events(
         self,
         q: str | None = None,
         sort_by: Literal["start_date_time", "name", "coins", "max_volunteers"] = "start_date_time",
         sort_dir: Literal["asc", "desc"] = "asc",
-        statuses: list[Status] | None = None,
+        statuses: list[EventStatus] | None = None,
         organization_id: str | None = None,
         age: int | None = None,
         lat: float | None = None,

@@ -16,11 +16,10 @@ from app.schemas.admin import (
     UpdateOrganizationRequest,
     UpdateVendorRequest,
 )
+from app.schemas.event import EventStatus, UpdateEventStatusRequest
+from app.schemas.organization import OrganizationStatus
 from app.schemas.user import User
-from app.schemas.organization import Status, UpdateOrganizationRequest
 from app.schemas.vendor import VendorStatus
-from app.schemas.item import UpdateItemRequest
-from app.schemas.event import UpdateEventStatusRequest, Status as EventStatus
 
 router = APIRouter()
 
@@ -67,7 +66,7 @@ async def change_org_status(
 
     # Update organization status
 
-    update_data = UpdateOrganizationRequest(status=Status(approval_data.status))
+    update_data = UpdateOrganizationRequest(status=OrganizationStatus(approval_data.status))
     await org_model.update_organization(approval_data.organization_id, update_data)
 
 

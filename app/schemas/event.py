@@ -1,10 +1,17 @@
 from datetime import UTC, datetime
+from enum import Enum
 
 from bson import ObjectId
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.location import Location
-from app.schemas.status import Status
+
+
+class EventStatus(str, Enum):
+    PUBLISHED = "PUBLISHED"
+    CANCELLED = "CANCELLED"
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
 
 
 class Event(BaseModel):
@@ -19,7 +26,7 @@ class Event(BaseModel):
     start_date_time: datetime
     end_date_time: datetime
     organization_id: str
-    status: Status = Status.PUBLISHED
+    status: EventStatus = EventStatus.PUBLISHED
     max_volunteers: int
     coins: int
     description: str | None = None
@@ -59,10 +66,11 @@ class CreateEventRequest(BaseModel):
     age_min: int | None = None
     age_max: int | None = None
     manual_difficulty_coefficient: float = 1.0
+    status: EventStatus = EventStatus.PUBLISHED
 
 
 class UpdateEventStatusRequest(BaseModel):
-    status: Status | None = None
+    status: EventStatus | None = None
     name: str | None = None
     location: str | None = None
     max_volunteers: int | None = None

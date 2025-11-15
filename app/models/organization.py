@@ -8,7 +8,7 @@ from app.schemas.location import Location
 from app.schemas.organization import (
     CreateOrganizationRequest,
     Organization,
-    Status,
+    OrganizationStatus,
     UpdateOrganizationRequest,
 )
 
@@ -39,7 +39,7 @@ class OrganizationModel:
         lng: float | None = None,
         distance_km: float | None = None,
     ) -> list[Organization]:
-        filters = {"status": Status.APPROVED}
+        filters = {"status": OrganizationStatus.APPROVED}
         if lat and lng and distance_km:
             location = Location(type="Point", coordinates=[lng, lat])
             distance = int(distance_km * 1000)
@@ -51,7 +51,9 @@ class OrganizationModel:
         return [Organization(**org) for org in orgs_list]
 
     async def get_organization_by_id(self, id: str) -> Organization:
-        org = await self.collection.find_one({"_id": ObjectId(id), "status": Status.APPROVED})
+        org = await self.collection.find_one(
+            {"_id": ObjectId(id), "status": OrganizationStatus.APPROVED}
+        )
 
         if not org:
             raise HTTPException(
@@ -65,7 +67,7 @@ class OrganizationModel:
         self, organization: CreateOrganizationRequest, user_id: str, location: Location
     ) -> Organization:
         org_data = organization.model_dump()
-        org_data["status"] = Status.IN_REVIEW
+        org_data["status"] = OrganizationStatus.IN_REVIEW
         org_data["location"] = location.model_dump()
 
         result = await self.collection.insert_one(org_data)
@@ -89,7 +91,7 @@ class OrganizationModel:
 
     async def delete_organization(self, id: str) -> None:
         await self.collection.update_one(
-            {"_id": ObjectId(id)}, {"$set": {"status": Status.DELETED}}
+            {"_id": ObjectId(id)}, {"$set": {"status": OrganizationStatus.DELETED}}
         )
 
 
