@@ -15,6 +15,7 @@ from app.api.endpoints import (
     item,
     order,
     organization,
+    recommendation,
     registration,
     user,
     vendor,
@@ -23,6 +24,7 @@ from app.api.endpoints import (
 )
 from app.core.config import settings
 from app.models.event import EventModel
+from app.models.event_similarity import EventSimilarityModel
 from app.models.organization import OrganizationModel
 
 
@@ -31,8 +33,10 @@ async def lifespan(app: FastAPI):
     # Create geospatial indexes on startup
     event_model = EventModel.get_instance()
     org_model = OrganizationModel.get_instance()
+    event_similarity_model = EventSimilarityModel.get_instance()
     await event_model.create_indexes()
     await org_model.create_indexes()
+    await event_similarity_model.create_indexes()
 
     # Initialize cache
     redis_backend = RedisBackend(Redis.from_url(settings.REDIS_URL))
@@ -98,3 +102,5 @@ app.include_router(
 app.include_router(registration.router, prefix="/registration", tags=["registration"])
 
 app.include_router(order.router, prefix="/order", tags=["order"])
+
+app.include_router(recommendation.router, prefix="/recommendation", tags=["recommendation"])
