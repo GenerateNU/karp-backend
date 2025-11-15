@@ -1,10 +1,10 @@
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from bson import ObjectId
 from fastapi import HTTPException
 
 from app.database.mongodb import db
+from app.schemas.achievement import VolunteerReceivedAchievementResponse
 from app.schemas.volunteer_achievement import (
     CreateVolunteerAchievementRequest,
     VolunteerAchievement,
@@ -35,7 +35,7 @@ class VolunteerAchievementModel:
         volunteer_achievement_data = {
             "achievement_id": ObjectId(volunteer_achievement.achievement_id),
             "volunteer_id": ObjectId(volunteer_achievement.volunteer_id),
-            "received_at": datetime.now(),
+            "received_at": volunteer_achievement.received_at,
         }
 
         result = await self.collection.insert_one(volunteer_achievement_data)
@@ -67,7 +67,7 @@ class VolunteerAchievementModel:
 
         return result
 
-    async def get_volunteer_achievements_by_achievement(
+    async def get_volunteer_achievements_by_achievement_id(
         self, achievement_id: str
     ) -> list[VolunteerAchievement]:
         volunteer_achievements_list = await self.collection.find(
@@ -82,6 +82,39 @@ class VolunteerAchievementModel:
             {"volunteer_id": ObjectId(volunteer_id)}
         ).to_list(length=None)
         return [VolunteerAchievement(**v) for v in volunteer_achievements_list]
+
+    async def get_volunteer_received_achievements_by_volunteer(
+        self, volunteer_id: str
+    ) -> list[VolunteerReceivedAchievementResponse]:
+        pipeline = [
+            {"$match": {"volunteer_id": ObjectId(volunteer_id)}},
+            {
+                "$lookup": {
+                    "from": "achievements",
+                    "localField": "achievement_id",
+                    "foreignField": "_id",
+                    "as": "achievement",
+                }
+            },
+            {"$unwind": "$achievement"},
+            {"$match": {"achievement.is_active": True}},
+            {
+                "$project": {
+                    "_id": {"$toString": "$achievement._id"},
+                    "name": "$achievement.name",
+                    "description": "$achievement.description",
+                    "event_type": "$achievement.event_type",
+                    "threshold": "$achievement.threshold",
+                    "image_s3_key": "$achievement.image_s3_key",
+                    "is_active": "$achievement.is_active",
+                    "received_at": "$received_at",
+                }
+            },
+        ]
+        return await self.collection.aggregate(pipeline).to_list(length=None)
+
+    async def delete_all_volunteer_achievements_by_achievement(self, achievement_id: str):
+        return await self.collection.delete_many({"achievement_id": ObjectId(achievement_id)})
 
     async def delete_volunteer_achievement(self, volunteer_achievement_id: str) -> None:
         volunteer_achievement_obj_id = parse_object_id(volunteer_achievement_id)

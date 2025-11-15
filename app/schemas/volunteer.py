@@ -24,6 +24,8 @@ class TrainingDocumentType(str, Enum):  # may use later
 class TrainingDocument(BaseModel):
     file_type: str  # str for now bc we will have a dropdown for the frontend
     image_s3_key: str
+
+
 class Qualification(str, Enum):
     CPR_CERTIFIED = "CPR Certified"
     ELDER_CARE = "Elder Care"

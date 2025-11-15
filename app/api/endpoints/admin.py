@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from app.api.endpoints.user import get_current_admin
+from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.admin import admin_model
 from app.models.event import event_model
 from app.models.item import item_model
@@ -13,14 +13,13 @@ from app.schemas.admin import (
     CreateAdminRequest,
     UpdateEventRequest,
     UpdateItemRequest,
-    UpdateOrganizationRequest,
     UpdateVendorRequest,
 )
-from app.schemas.user import User
+from app.schemas.event import Status as EventStatus
+from app.schemas.event import UpdateEventStatusRequest
 from app.schemas.organization import Status, UpdateOrganizationRequest
+from app.schemas.user import User, UserType
 from app.schemas.vendor import VendorStatus
-from app.schemas.item import UpdateItemRequest
-from app.schemas.event import UpdateEventStatusRequest, Status as EventStatus
 
 router = APIRouter()
 
@@ -48,6 +47,21 @@ async def create_admin(
     admin_dict = admin.model_dump()
     admin_dict["user_type"] = "ADMIN"
     return AdminResponse(**admin_dict)
+
+
+@router.get("/me", response_model=AdminResponse)
+async def get_admin_me(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> AdminResponse:
+    if current_user.user_type != UserType.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can view admin profile"
+        )
+
+    admin = await admin_model.get_admin_by_id(current_user.entity_id)
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin not found")
+    return AdminResponse(**admin.model_dump())
 
 
 @router.get("/all", response_model=list[AdminResponse])
