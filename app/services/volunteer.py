@@ -1,9 +1,11 @@
 import traceback
 
+from app.core.cache_constants import VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE
 from app.models.volunteer import volunteer_model
 from app.schemas.event import Event
 from app.schemas.registration import Registration
 from app.schemas.volunteer import UpdateVolunteerRequest, Volunteer
+from app.services.cache import cache_service
 from app.services.volunteer_achievements import volunteer_achievements_service
 
 
@@ -15,6 +17,8 @@ class VolunteerService:
         volunteer_model=volunteer_model,
         volunteer_achievements_service=volunteer_achievements_service,
     ):
+        if VolunteerService._instance is not None:
+            raise Exception("This class is a singleton!")
         self.volunteer_model = volunteer_model
         self.volunteer_achievements_service = volunteer_achievements_service
 
@@ -41,6 +45,7 @@ class VolunteerService:
             await self.volunteer_achievements_service.add_level_up_achievement(
                 volunteer.id, new_level
             )
+        await cache_service.delete(VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE, volunteer.id)
 
     def create_level_to_xp_dict(self):
         level_dict = {}

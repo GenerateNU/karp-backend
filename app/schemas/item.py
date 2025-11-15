@@ -6,12 +6,12 @@ from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
 class ItemStatus(str, Enum):
-    APPROVED = "APPROVED"
-    IN_REVIEW = "IN_REVIEW"
-    REJECTED = "REJECTED"
+    PUBLISHED = "PUBLISHED"
     DELETED = "DELETED"
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
     ACTIVE = "ACTIVE"
-    CLAIMED = "CLAIMED"
 
 
 class Item(BaseModel):
@@ -41,6 +41,7 @@ class ItemSortParam(str, Enum):
     DATE = "date"
     NAME = "name"
     COINS = "coins"
+    CREATED_AT = "created_at"
 
     @property
     def field_name(self) -> str:
@@ -48,6 +49,7 @@ class ItemSortParam(str, Enum):
             ItemSortParam.DATE: "time_posted",
             ItemSortParam.NAME: "name",
             ItemSortParam.COINS: "price",
+            ItemSortParam.CREATED_AT: "created_at",
         }
         return field_mapping[self]
 
@@ -58,10 +60,12 @@ class CreateItemRequest(BaseModel):
     description: str | None = None
     tags: list[str] | None = None
     image_s3_key: str | None = None
+    dollar_price: float
+    status: ItemStatus = ItemStatus.PUBLISHED
 
 
 class UpdateItemRequest(BaseModel):
     name: str | None = None
-    price: int | None = None
+    dollar_price: float | None = None
     expiration: datetime | None = None
     status: ItemStatus | None = None

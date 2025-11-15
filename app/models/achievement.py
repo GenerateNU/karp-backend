@@ -2,6 +2,7 @@ from fastapi import HTTPException
 
 from app.database.mongodb import db
 from app.schemas.achievement import Achievement, CreateAchievementRequest, UpdateAchievementRequest
+from app.schemas.karp_event import KarpEvent
 from app.utils.object_id import parse_object_id
 
 
@@ -9,6 +10,8 @@ class AchievementModel:
     _instance: "AchievementModel" = None
 
     def __init__(self):
+        if AchievementModel._instance is not None:
+            raise Exception("This class is a singleton!")
         self.collection = db["achievements"]
 
     @classmethod
@@ -25,8 +28,23 @@ class AchievementModel:
 
         return Achievement(**achievement_data)
 
-    async def get_all_achievements(self) -> list[Achievement]:
-        achievements_list = await self.collection.find().to_list(length=None)
+    async def get_all_achievements(
+        self,
+        event_type: KarpEvent | None = None,
+        threshold_min: int | None = None,
+        threshold_max: int | None = None,
+    ) -> list[Achievement]:
+        filters = {"is_active": True}
+        if event_type is not None:
+            filters["event_type"] = event_type
+        threshold_filter = {}
+        if threshold_min is not None:
+            threshold_filter["$gte"] = threshold_min
+        if threshold_max is not None:
+            threshold_filter["$lte"] = threshold_max
+        if threshold_filter:
+            filters["threshold"] = threshold_filter
+        achievements_list = await self.collection.find(filters).to_list(length=None)
 
         return [Achievement(**achievement) for achievement in achievements_list]
 
@@ -62,7 +80,7 @@ class AchievementModel:
 
         updated_data = updated_achievement.model_dump(exclude_unset=True)
 
-        result = await db["achievements"].update_one(
+        result = await self.collection.update_one(
             {"_id": achievement_obj_id}, {"$set": updated_data}
         )
 
@@ -77,9 +95,14 @@ class AchievementModel:
         if result.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Achievement not found")
 
-    async def get_achievements_by_level(self, level: int) -> Achievement:
-        achievements_list = await self.collection.find({"level": level}).to_list(length=None)
-        return [Achievement(**achievement) for achievement in achievements_list]
+    async def update_achievement_image(self, achievement_id: str, s3_key: str) -> str:
+        achievement_obj_id = parse_object_id(achievement_id)
+        result = await self.collection.update_one(
+            {"_id": achievement_obj_id}, {"$set": {"image_s3_key": s3_key}}
+        )
+        if result.matched_count == 0:
+            raise HTTPException(status_code=404, detail="Achievement not found")
+        return s3_key
 
 
 achievement_model = AchievementModel.get_instance()

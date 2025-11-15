@@ -20,6 +20,7 @@ email_validator==2.2.0
 etelemetry==0.3.1
 Faker==37.7.0
 fastapi==0.115.8
+fastapi-cache2==0.2.1
 filelock==3.17.0
 fitz==0.0.1.dev2
 h11==0.14.0
@@ -65,6 +66,7 @@ pytz==2025.1
 pyxnat==1.6.2
 PyYAML==6.0.2
 rdflib==6.3.2
+redis==5.2.1
 requests==2.32.3
 rsa==4.9
 ruff==0.12.12

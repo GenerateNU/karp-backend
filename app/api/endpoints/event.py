@@ -6,9 +6,8 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.event import event_model
 from app.models.organization import org_model
-from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
+from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventStatusRequest
 from app.schemas.s3 import PresignedUrlResponse
-from app.schemas.status import Status
 from app.schemas.user import User, UserType
 from app.services.event import event_service
 from app.services.geocoding import geocoding_service
@@ -35,10 +34,12 @@ async def get_events_by_org(organization_id: str) -> list[Event]:
 async def search_events(
     q: Annotated[str | None, Query(description="Search term (name, description, keywords)")] = None,
     sort_by: Annotated[
-        Literal["start_date_time", "name", "coins", "max_volunteers"], Query()
+        Literal["start_date_time", "name", "coins", "max_volunteers", "created_at"], Query()
     ] = "start_date_time",
     sort_dir: Annotated[Literal["asc", "desc"], Query()] = "asc",
-    statuses: Annotated[list[Status] | None, Query(description="Allowed event statuses")] = None,
+    statuses: Annotated[
+        list[EventStatus] | None, Query(description="Allowed event statuses")
+    ] = None,
     organization_id: Annotated[str | None, Query()] = None,
     age: Annotated[
         int | None, Query(ge=0, description="User age for eligibility filtering")
@@ -83,7 +84,7 @@ async def create_event(
                 detail="You must be associated with an organization to create an event",
             )
         organization = await org_model.get_organization_by_id(current_user.entity_id)
-        if organization.status != Status.APPROVED:
+        if organization.status != EventStatus.APPROVED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Your organization is not approved to create events",
@@ -96,7 +97,18 @@ async def create_event(
         )
 
     coordinates = await geocoding_service.location_to_coordinates(event.address)
-    return await event_model.create_event(event, current_user.id, coordinates)
+
+    ai_difficulty_coefficient = await event_service.estimate_event_difficulty(
+        event.description or ""
+    )
+
+    return await event_model.create_event(
+        event,
+        current_user.id,
+        current_user.entity_id,
+        coordinates,
+        ai_difficulty_coefficient=ai_difficulty_coefficient,
+    )
 
 
 @router.delete("/clear", response_model=None)
