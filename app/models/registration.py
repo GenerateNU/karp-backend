@@ -131,7 +131,7 @@ class RegistrationModel:
             {
                 "$set": {
                     "clocked_out": datetime.now(),
-                    "registration_status": RegistrationStatus.COMPLETED,  # ADD THIS LINE
+                    "registration_status": RegistrationStatus.COMPLETED,
                 }
             },
         )
