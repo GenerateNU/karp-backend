@@ -8,7 +8,11 @@ from app.schemas.status import Status
 
 
 class Event(BaseModel):
-    id: str = Field(validation_alias=AliasChoices("_id", "id"), serialization_alias="id")
+    id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("_id", "id"),
+        serialization_alias="id",
+    )
     name: str
     address: str
     location: Location | None = None

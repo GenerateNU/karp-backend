@@ -65,7 +65,11 @@ class EventModel:
         )
         event_data["coins"] = coins
 
-        result = await self.collection.insert_one(event_data)
+        event = Event(**event_data)
+
+        result = await self.collection.insert_one(
+            event.model_dump(mode="json", by_alias=True, exclude={"_id", "id"})
+        )
         event_data["_id"] = result.inserted_id
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
         return Event(**inserted_doc)
