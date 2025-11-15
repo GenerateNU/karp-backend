@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
@@ -18,6 +19,8 @@ from app.schemas.volunteer import (
 if TYPE_CHECKING:
     from motor.motor_asyncio import AsyncIOMotorCollection
 
+logger = logging.getLogger(__name__)
+
 
 class VolunteerModel:
     _instance: "VolunteerModel" = None
@@ -32,6 +35,13 @@ class VolunteerModel:
         if VolunteerModel._instance is None:
             VolunteerModel._instance = cls()
         return VolunteerModel._instance
+
+    async def create_indexes(self) -> None:
+        try:
+            await self.collection.create_index("preferences")
+            logger.info("Volunteer recommendation indexes created successfully")
+        except Exception as e:
+            logger.error(f"Error creating volunteer indexes: {e}")
 
     async def get_volunteer_by_id(self, volunteer_id: str) -> Volunteer:
         volunteer = await self.collection.find_one({"_id": ObjectId(volunteer_id)})
