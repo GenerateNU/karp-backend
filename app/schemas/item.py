@@ -58,7 +58,7 @@ class CreateItemRequest(BaseModel):
     name: str
     expiration: datetime
     description: str | None = None
-    tags: list[str] | None = None
+    tags: list[str] = []
     image_s3_key: str | None = None
     dollar_price: float
     status: ItemStatus = ItemStatus.PUBLISHED

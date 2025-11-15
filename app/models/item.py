@@ -29,7 +29,7 @@ class ItemModel:
 
         item_data["time_posted"] = datetime.now()
         item_data["vendor_id"] = ObjectId(vendor_id)
-        item_data["status"] = ItemStatus.ACTIVE
+        item_data["status"] = ItemStatus.PUBLISHED
         item_data["price"] = int(item.dollar_price * 100)
 
         if "tags" not in item_data:
