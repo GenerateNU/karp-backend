@@ -102,7 +102,7 @@ class ItemModel:
         item_obj_id = parse_object_id(item_id)
 
         result = await self.collection.update_one(
-            {"_id": item_obj_id}, {"$set": {"status": "active"}}
+            {"_id": item_obj_id}, {"$set": {"status": ItemStatus.ACTIVE}}
         )
 
         if result.matched_count == 0:
