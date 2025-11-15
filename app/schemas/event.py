@@ -12,6 +12,7 @@ class EventStatus(str, Enum):
     CANCELLED = "CANCELLED"
     DRAFT = "DRAFT"
     APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class Event(BaseModel):

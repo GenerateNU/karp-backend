@@ -6,12 +6,11 @@ from pydantic import AliasChoices, BaseModel, Field, field_validator
 
 
 class ItemStatus(str, Enum):
-    APPROVED = "APPROVED"
-    IN_REVIEW = "IN_REVIEW"
-    REJECTED = "REJECTED"
+    PUBLISHED = "PUBLISHED"
     DELETED = "DELETED"
-    ACTIVE = "ACTIVE"
-    CLAIMED = "CLAIMED"
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class Item(BaseModel):
