@@ -8,7 +8,7 @@ from app.models.user import user_model
 from app.schemas.organization import (
     CreateOrganizationRequest,
     Organization,
-    Status,
+    OrganizationStatus,
     UpdateOrganizationRequest,
 )
 from app.schemas.user import User, UserType
@@ -29,7 +29,7 @@ async def get_organizations(
     sort_by: Annotated[Literal["name", "status", "distance"], Query()] = "name",
     sort_dir: Annotated[Literal["asc", "desc"], Query()] = "asc",
     statuses: Annotated[
-        list[Status] | None, Query(description="Allowed organization statuses")
+        list[OrganizationStatus] | None, Query(description="Allowed organization statuses")
     ] = None,
     lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
     lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
