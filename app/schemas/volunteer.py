@@ -60,6 +60,7 @@ class Volunteer(BaseModel):
     is_active: bool = True
     experience: int = 0
     location: Location
+    image_s3_key: str | None = None
     current_level: int = 0
 
     class Config:
@@ -89,5 +90,6 @@ class UpdateVolunteerRequest(BaseModel):
     preferred_days: list[DayOfWeek] | None = None
     is_active: bool | None = None
     location: Location | None = None
+    phone: str | None = None
     experience: int | None = None
     current_level: int | None = None
