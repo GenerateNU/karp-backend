@@ -4,7 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
 from app.models.user import user_model
-from app.schemas.vendor import CreateVendorRequest, UpdateVendorRequest, Vendor
+from app.schemas.vendor import CreateVendorRequest, UpdateVendorRequest, Vendor, VendorStatus
 
 
 class VendorModel:
@@ -38,8 +38,11 @@ class VendorModel:
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
         return Vendor(**inserted_doc)
 
-    async def get_all_vendors(self) -> list[Vendor]:
-        vendors_list = await self.collection.find().to_list(length=None)
+    async def get_all_vendors(self, status: VendorStatus | None = None) -> list[Vendor]:
+        query: dict = {}
+        if status:
+            query["status"] = status
+        vendors_list = await self.collection.find(query).to_list(length=None)
         return [Vendor(**v) for v in vendors_list]
 
     async def update_vendor(self, vendor_id: str, vendor: UpdateVendorRequest) -> Vendor:
