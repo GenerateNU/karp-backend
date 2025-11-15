@@ -44,12 +44,18 @@ class ItemModel:
 
     async def get_items(
         self,
+        status: ItemStatus | None = None,
         search_text: str | None = None,
         vendor_id: str | None = None,
         sort_by: ItemSortParam | None = None,
         sort_order: SortOrder = SortOrder.ASC,
     ) -> list[Item]:
         query = {}
+
+        if status:
+            query["status"] = status
+        else:
+            query["status"] = {"$ne": ItemStatus.APPROVED}
 
         if search_text:
             query["name"] = {
