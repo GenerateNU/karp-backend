@@ -139,7 +139,9 @@ class EventModel:
     async def search_events(
         self,
         q: str | None = None,
-        sort_by: Literal["start_date_time", "name", "coins", "max_volunteers"] = "start_date_time",
+        sort_by: Literal[
+            "start_date_time", "name", "coins", "max_volunteers", "created_at"
+        ] = "start_date_time",
         sort_dir: Literal["asc", "desc"] = "asc",
         statuses: list[EventStatus] | None = None,
         organization_id: str | None = None,
@@ -159,10 +161,7 @@ class EventModel:
                 filters = filters_status
 
         if organization_id:
-            try:
-                filters["organization_id"] = ObjectId(organization_id)
-            except Exception:
-                raise HTTPException(status_code=400, detail="Invalid organization_id") from None
+            filters["organization_id"] = organization_id
 
         if age is not None:
             age_clause = {
@@ -200,7 +199,7 @@ class EventModel:
             else:
                 filters = filters_q
 
-        if lat and lng and distance_km:
+        if lat is not None and lng is not None and distance_km is not None:
             location = Location(type="Point", coordinates=[lng, lat])
             max_distance_meters = int(distance_km * 1000)
             filters["location"] = {
@@ -216,6 +215,7 @@ class EventModel:
             .limit(max(1, min(200, limit)))
         )
         docs = await cursor.to_list(length=None)
+
         return [Event(**d) for d in docs]
 
     async def update_event_image(self, event_id: str, s3_key: str) -> str:
