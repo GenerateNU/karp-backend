@@ -128,7 +128,7 @@ async def get_event_by_id(event_id: str) -> Event:
 
 
 @router.put("/{event_id}", response_model=Event | None)
-async def update_event_status(
+async def update_event(
     event_id: str,
     event: Annotated[UpdateEventStatusRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
@@ -148,7 +148,7 @@ async def update_event_status(
     # Admins can bypass org authorization
     if current_user.user_type != UserType.ADMIN:
         await event_service.authorize_org(event_id, current_user.entity_id)
-    updated_event = await event_model.update_event_status(event_id, event)
+    updated_event = await event_model.update_event(event_id, event)
     return updated_event
 
 
@@ -221,3 +221,23 @@ async def get_event_image(event_id: str):
         event.image_s3_key, content_type=f"image/{file_type}"
     )
     return {"url": presigned_url}
+
+
+@router.get("/{event_id}/generate-qr-code")
+async def get_event_qr_codes(
+    event_id: str, current_user: Annotated[User, Depends(get_current_user)]
+):
+    event = await event_model.get_event_by_id(event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only users with organization role can get an event qr code",
+        )
+
+    if current_user.user_type != UserType.ADMIN:
+        await event_service.authorize_org(event_id, current_user.entity_id)
+
+    return await event_service.get_event_qr_codes(event)

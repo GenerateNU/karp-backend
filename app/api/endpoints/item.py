@@ -29,6 +29,7 @@ async def post_item(
 
     vendor = await vendor_model.get_vendor_by_id(current_user.entity_id)
     if vendor.status != VendorStatus.APPROVED:
+        print("vendor is not approved!")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Your vendor is not approved to create items",

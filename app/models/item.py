@@ -32,6 +32,9 @@ class ItemModel:
         item_data["status"] = ItemStatus.ACTIVE
         item_data["price"] = int(item.dollar_price * 100)
 
+        if "tags" not in item_data:
+            item_data["tags"] = []
+
         result = await self.collection.insert_one(item_data)
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
 
