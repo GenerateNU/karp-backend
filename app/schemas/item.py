@@ -11,6 +11,7 @@ class ItemStatus(str, Enum):
     DRAFT = "DRAFT"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
+    ACTIVE = "ACTIVE"
 
 
 class Item(BaseModel):
