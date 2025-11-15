@@ -1,7 +1,9 @@
+import traceback
+
 from app.models.volunteer import volunteer_model
 from app.schemas.event import Event
 from app.schemas.registration import Registration
-from app.schemas.volunteer import Volunteer
+from app.schemas.volunteer import UpdateVolunteerRequest, Volunteer
 from app.services.volunteer_achievements import volunteer_achievements_service
 
 
@@ -34,11 +36,10 @@ class VolunteerService:
                 break
 
         if new_level != volunteer.current_level:
-            await self.volunteer_model.update_volunteer(
-                volunteer["id"], {"current_level": new_level}
-            )
+            update_volunteer_req = UpdateVolunteerRequest(current_level=new_level)
+            await self.volunteer_model.update_volunteer(volunteer.id, update_volunteer_req)
             await self.volunteer_achievements_service.add_level_up_achievement(
-                volunteer["id"], new_level
+                volunteer.id, new_level
             )
 
     def create_level_to_xp_dict(self):
@@ -70,13 +71,18 @@ class VolunteerService:
     ) -> None:
         try:
             if registration.clocked_in and registration.clocked_out:
-                await self.volunteer_model.update_volunteer(
-                    volunteer_id, {"$inc": {"experience": event.coins, "coins": event.coins}}
+                new_experience = volunteer.experience + event.coins
+                new_coins = volunteer.coins + event.coins
+                update_volunteer_req = UpdateVolunteerRequest(
+                    experience=new_experience, coins=new_coins
+                )
+                volunteer = await self.volunteer_model.update_volunteer(
+                    volunteer_id, update_volunteer_req
                 )
                 await self.check_level_up(volunteer)
         except Exception:
             print("Error handling volunteer checkout rewards")
-            pass
+            traceback.print_exc()
 
 
 volunteer_service = VolunteerService.get_instance()

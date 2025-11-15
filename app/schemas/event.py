@@ -25,6 +25,10 @@ class Event(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     created_by: str
     image_s3_key: str | None = None
+    check_in_qr_code_image: str | None = None
+    check_in_qr_token: str | None = None
+    check_out_qr_code_image: str | None = None
+    check_out_qr_token: str | None = None
 
     model_config = ConfigDict(
         use_enum_values=True,
@@ -66,5 +70,9 @@ class UpdateEventStatusRequest(BaseModel):
     keywords: list[str] | None = None
     age_min: int | None = None
     age_max: int | None = None
+    check_in_qr_code_image: str | None = None
+    check_in_qr_token: str | None = None
+    check_out_qr_code_image: str | None = None
+    check_out_qr_token: str | None = None
 
     model_config = ConfigDict(use_enum_values=True, from_attributes=True)

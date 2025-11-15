@@ -84,7 +84,7 @@ async def unregister_registration(
     return await registration_model.unregister_registration(registration_id, current_user.entity_id)
 
 
-@router.put("event/check-in/", response_model=Registration)
+@router.put("/{event_id}/check-in", response_model=Registration)
 async def check_in_registration(
     event_id: str,
     qr_token: str,
@@ -97,7 +97,7 @@ async def check_in_registration(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only volunteers can check in for events",
         )
-    volunteer_id = current_user.id
+    volunteer_id = current_user.entity_id
     volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)
     if not volunteer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
@@ -134,7 +134,7 @@ async def check_in_registration(
     return await registration_model.check_in_registration(volunteer_id, event_id)
 
 
-@router.put("event/check-out/", response_model=Registration)
+@router.put("/{event_id}/check-out", response_model=Registration)
 async def check_out_registration(
     event_id: str,
     qr_token: str,
@@ -147,7 +147,7 @@ async def check_out_registration(
             detail="Only volunteers can check in for events",
         )
 
-    volunteer_id = current_user.id
+    volunteer_id = current_user.entity_id
     volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)
     if not volunteer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
