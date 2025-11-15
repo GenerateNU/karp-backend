@@ -15,7 +15,7 @@ class Event(BaseModel):
     start_date_time: datetime
     end_date_time: datetime
     organization_id: str
-    status: Status
+    status: Status = Status.PUBLISHED
     max_volunteers: int
     coins: int
     description: str | None = None
@@ -25,6 +25,9 @@ class Event(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     created_by: str
     image_s3_key: str | None = None
+    manual_difficulty_coefficient: float = 1.0
+    ai_difficulty_coefficient: float = 1.0
+    difficulty_coefficient: float = 1.0
 
     model_config = ConfigDict(
         use_enum_values=True,
@@ -47,11 +50,11 @@ class CreateEventRequest(BaseModel):
     start_date_time: datetime
     end_date_time: datetime
     max_volunteers: int
-    coins: int
     description: str | None = None
     keywords: list[str] | None = None
     age_min: int | None = None
     age_max: int | None = None
+    manual_difficulty_coefficient: float = 1.0
 
 
 class UpdateEventStatusRequest(BaseModel):

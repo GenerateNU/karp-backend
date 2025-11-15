@@ -96,7 +96,18 @@ async def create_event(
         )
 
     coordinates = await geocoding_service.location_to_coordinates(event.address)
-    return await event_model.create_event(event, current_user.id, coordinates)
+
+    ai_difficulty_coefficient = await event_service.estimate_event_difficulty(
+        event.description or ""
+    )
+
+    return await event_model.create_event(
+        event,
+        current_user.id,
+        current_user.entity_id,
+        coordinates,
+        ai_difficulty_coefficient=ai_difficulty_coefficient,
+    )
 
 
 @router.delete("/clear", response_model=None)
