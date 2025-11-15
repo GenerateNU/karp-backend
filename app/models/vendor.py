@@ -26,7 +26,6 @@ class VendorModel:
         if not vendor_data:
             raise HTTPException(status_code=404, detail="Vendor is not found or it is not approved")
         if vendor_data:
-            print(vendor_data)
             return Vendor(**vendor_data)
         return None
 
@@ -55,9 +54,7 @@ class VendorModel:
         return Vendor(**updated_doc)
 
     async def approve_vendor(self, vendor_id: str) -> None:
-        await self.collection.update_one(
-            {"_id": vendor_id}, {"$set": {"status": VendorStatus.APPROVED}}
-        )
+        await self.collection.update_one({"_id": vendor_id}, {"$set": {"approved": True}})
 
     async def delete_all_vendors(self) -> None:
         await self.collection.delete_many({})

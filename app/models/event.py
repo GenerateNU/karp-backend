@@ -99,11 +99,13 @@ class EventModel:
         )
         return [Event(**event) for event in events_list]
 
-    async def update_event(self, event_id: str, event: UpdateEventStatusRequest) -> Event | None:
+    async def update_event_status(
+        self, event_id: str, event: UpdateEventStatusRequest
+    ) -> Event | None:
         event_data = await self.collection.find_one({"_id": ObjectId(event_id)})
         if event_data:
             updated_data = event.model_dump(
-                mode="json", by_alias=True, exclude_unset=True, exclude={"_id", "id"}
+                mode="json", by_alias=True, exclude_none=True, exclude={"_id", "id"}
             )
             await self.collection.update_one({"_id": ObjectId(event_id)}, {"$set": updated_data})
             event_data.update(updated_data)

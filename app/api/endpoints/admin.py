@@ -112,4 +112,4 @@ async def change_event_status(
 ) -> None:
 
     update_data = UpdateEventStatusRequest(status=EventStatus(approval_data.status))
-    await event_model.update_event(approval_data.event_id, update_data)
+    await event_model.update_event_status(approval_data.event_id, update_data)
