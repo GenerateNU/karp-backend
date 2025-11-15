@@ -124,6 +124,62 @@ async def delete_volunteer(
     return await volunteer_model.delete_volunteer(volunteer_id)
 
 
+@router.get("/me/profile-picture/upload-url", response_model=PresignedUrlResponse)
+async def get_profile_picture_upload_url(
+    filename: str,
+    filetype: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    if current_user.user_type != UserType.VOLUNTEER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only volunteers can upload profile pictures",
+        )
+
+    if current_user.entity_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You must be associated with a volunteer profile",
+        )
+
+    url, new_s3_key = s3_service.generate_presigned_url(
+        filename,
+        content_type=filetype,
+        dir_prefix=f"volunteers/{current_user.entity_id}/profile",
+    )
+
+    await volunteer_model.update_volunteer_image(current_user.entity_id, new_s3_key)
+
+    return PresignedUrlResponse(
+        upload_url=url,
+        file_url=new_s3_key,
+    )
+
+
+@router.get("/me/profile-picture")
+async def get_profile_picture(
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    image_key = await volunteer_model.get_volunteer_image_key(current_user.entity_id)
+    if not image_key:
+        raise HTTPException(status_code=404, detail="Profile picture not found")
+
+    file_type = image_key.split(".")[-1]
+    presigned_url = s3_service.get_presigned_url(image_key, content_type=f"image/{file_type}")
+    return {"url": presigned_url}
+
+
+@router.get("/{volunteer_id}/profile-picture")
+async def get_volunteer_profile_picture(volunteer_id: str):
+    image_key = await volunteer_model.get_volunteer_image_key(volunteer_id)
+    if not image_key:
+        raise HTTPException(status_code=404, detail="Profile picture not found")
+
+    file_type = image_key.split(".")[-1]
+    presigned_url = s3_service.get_presigned_url(image_key, content_type=f"image/{file_type}")
+    return {"url": presigned_url}
+
+
 # Generate a pre-signed URL for an event image and store the S3 key in MongoDB
 @router.get("/me/upload-url", response_model=PresignedUrlResponse)
 async def upload_training_document_url(
@@ -132,7 +188,6 @@ async def upload_training_document_url(
     filetype: str,
     current_user: Annotated[User, Depends(get_current_user)],
 ):
-
     if current_user.user_type not in [UserType.VOLUNTEER]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

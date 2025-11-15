@@ -1,3 +1,5 @@
+from typing import Literal
+
 from bson import ObjectId
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
@@ -35,20 +37,94 @@ class OrganizationModel:
 
     async def get_all_organizations(
         self,
+        sort_by: Literal["name", "status", "distance"] = "name",
+        sort_dir: Literal["asc", "desc"] = "asc",
+        statuses: list[OrganizationStatus] | None = None,
         lat: float | None = None,
         lng: float | None = None,
         distance_km: float | None = None,
+        page: int = 1,
+        limit: int = 20,
     ) -> list[Organization]:
-        filters = {"status": OrganizationStatus.APPROVED}
-        if lat and lng and distance_km:
-            location = Location(type="Point", coordinates=[lng, lat])
-            distance = int(distance_km * 1000)
-            filters["location"] = {
-                "$near": {"$geometry": location.model_dump(), "$maxDistance": distance}
-            }
-        orgs_list = await self.collection.find(filters).to_list(length=None)
 
-        return [Organization(**org) for org in orgs_list]
+        filters: dict | None = None
+        if statuses:
+            filters_status = {"status": {"$in": list(statuses)}}
+        elif sort_by == "status":
+            filters_status = None
+        else:
+            filters_status = {"status": OrganizationStatus.APPROVED}
+
+        filters = filters_status
+
+        use_geo = False
+        if lat is not None and lng is not None and distance_km is not None:
+            location = Location(type="Point", coordinates=[lng, lat])
+            max_distance_meters = int(distance_km * 1000)
+            geo_clause = {
+                "location": {
+                    "$near": {
+                        "$geometry": location.model_dump(),
+                        "$maxDistance": max_distance_meters,
+                    }
+                }
+            }
+            filters = {"$and": [filters, geo_clause]} if filters else geo_clause
+            use_geo = True
+
+        direction = 1 if sort_dir == "asc" else -1
+        skip = max(0, (page - 1) * max(1, limit))
+        safe_limit = max(1, min(200, limit))
+
+        if sort_by == "status":
+            match_stage = filters or {}
+            status_order = {
+                "APPROVED": 0,
+                "IN_REVIEW": 1,
+                "REJECTED": 2,
+                "DELETED": 3,
+            }
+
+            status_branches = [
+                {"case": {"$eq": ["$status", status]}, "then": rank}
+                for status, rank in status_order.items()
+            ]
+
+            pipeline: list[dict] = []
+            if match_stage:
+                pipeline.append({"$match": match_stage})
+
+            pipeline.append(
+                {
+                    "$addFields": {
+                        "status_rank": {"$switch": {"branches": status_branches, "default": 99}}
+                    }
+                }
+            )
+
+            pipeline.append({"$sort": {"status_rank": direction, "_id": 1}})
+            pipeline.append({"$project": {"status_rank": 0}})
+            pipeline.append({"$skip": skip})
+            pipeline.append({"$limit": safe_limit})
+
+            docs = await self.collection.aggregate(pipeline).to_list(length=None)
+            return [Organization(**d) for d in docs]
+
+        elif sort_by == "distance" and use_geo:
+            cursor = self.collection.find(filters or {}).skip(skip).limit(safe_limit)
+
+        else:
+            sort_field = sort_by if sort_by in ("name", "status") else "name"
+            cursor = (
+                self.collection.find(filters or {})
+                .sort([(sort_field, direction), ("_id", 1)])
+                .skip(skip)
+                .limit(safe_limit)
+            )
+
+        # Changed this line - convert cursor results to Organization objects
+        docs = await cursor.to_list(length=None)
+        return [Organization(**d) for d in docs]
 
     async def get_organization_by_id(self, id: str) -> Organization:
         org = await self.collection.find_one(
@@ -67,7 +143,7 @@ class OrganizationModel:
         self, organization: CreateOrganizationRequest, user_id: str, location: Location
     ) -> Organization:
         org_data = organization.model_dump()
-        org_data["status"] = OrganizationStatus.IN_REVIEW
+        org_data["status"] = OrganizationStatus.PENDING
         org_data["location"] = location.model_dump()
 
         result = await self.collection.insert_one(org_data)
@@ -93,6 +169,35 @@ class OrganizationModel:
         await self.collection.update_one(
             {"_id": ObjectId(id)}, {"$set": {"status": OrganizationStatus.DELETED}}
         )
+
+    async def search_organizations(
+        self,
+        q: str | None = None,
+        page: int = 1,
+        limit: int = 20,
+    ) -> list[Organization]:
+        filters = {}
+
+        if q:
+            filters = {
+                "$or": [
+                    {"name": {"$regex": q, "$options": "i"}},
+                    {"description": {"$regex": q, "$options": "i"}},
+                ]
+            }
+
+        skip = max(0, (page - 1) * max(1, limit))
+        safe_limit = max(1, min(200, limit))
+
+        cursor = (
+            self.collection.find(filters)
+            .sort([("name", 1), ("_id", 1)])
+            .skip(skip)
+            .limit(safe_limit)
+        )
+
+        docs = await cursor.to_list(length=None)
+        return [Organization(**d) for d in docs]
 
 
 org_model = OrganizationModel.get_instance()

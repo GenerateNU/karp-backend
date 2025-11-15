@@ -5,6 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.vendor import CreateVendorRequest, Vendor, vendor_model
 from app.schemas.user import User, UserType
+from app.schemas.vendor import VendorStatus
 
 router = APIRouter()
 
@@ -37,8 +38,8 @@ async def create_vendor(
 
 
 @router.get("/all", response_model=list[Vendor])
-async def get_vendors():
-    return await vendor_model.get_all_vendors()
+async def get_vendors(status: Annotated[VendorStatus | None, None] = None):
+    return await vendor_model.get_all_vendors(status)
 
 
 @router.get("/approve/{vendor_id}", response_model=None)

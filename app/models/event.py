@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, time
 from typing import TYPE_CHECKING, Literal
 
 from bson import ObjectId
@@ -75,11 +76,185 @@ class EventModel:
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
         return Event(**inserted_doc)
 
-    async def get_all_events(self) -> list[Event]:
-        events_list = await self.collection.find({"status": EventStatus.PUBLISHED}).to_list(
-            length=None
-        )
-        return [Event(**event) for event in events_list]
+    async def get_all_events(
+        self,
+        sort_by: (
+            Literal["been_before", "new_additions", "coins_low_to_high", "coins_high_to_low"] | None
+        ) = None,
+        causes: list[str] | None = None,
+        qualifications: list[str] | None = None,
+        availability_days: list[str] | None = None,
+        availability_start_time: str | None = None,
+        availability_end_time: str | None = None,
+        location_radius_km: float | None = None,
+        lat: float | None = None,
+        lng: float | None = None,
+        volunteer_event_ids: set[str] | None = None,
+    ) -> list[Event]:
+        # Start with base filter for published events
+        filters: dict = {"status": Status.PUBLISHED}
+
+        # Filter by causes and/or qualifications (using keywords field)
+        keyword_filters = []
+        if causes and qualifications:
+            # Require all keywords from both lists to be present
+            all_keywords = list(set(causes + qualifications))
+            keyword_filter = {"keywords": {"$all": all_keywords}}
+            if "$and" in filters:
+                filters["$and"].append(keyword_filter)
+            else:
+                filters = {"$and": [filters, keyword_filter]}
+        elif causes:
+            keyword_filter = {"keywords": {"$all": causes}}
+            if "$and" in filters:
+                filters["$and"].append(keyword_filter)
+            else:
+                filters = {"$and": [filters, keyword_filter]}
+        elif qualifications:
+            keyword_filter = {"keywords": {"$all": qualifications}}
+            if "$and" in filters:
+                filters["$and"].append(keyword_filter)
+            else:
+                filters = {"$and": [filters, keyword_filter]}
+
+        # Filter by availability (days and times)
+        # Note: We'll filter in Python after fetching, as MongoDB date filtering with $expr
+        # can be complex and we need to check day of week and time ranges
+
+        # Filter by location
+        # Note: $near must be the first condition, so we handle it separately
+        location_query = None
+        if lat and lng and location_radius_km:
+            location = Location(type="Point", coordinates=[lng, lat])
+            max_distance_meters = int(location_radius_km * 1000)
+            location_query = {
+                "location": {
+                    "$near": {
+                        "$geometry": location.model_dump(),
+                        "$maxDistance": max_distance_meters,
+                    }
+                }
+            }
+
+        # Build final query - if location filter exists, combine with other filters
+        # Note: $near must be in the query, but we can combine it with $and
+        if location_query:
+            if "$and" in filters:
+                # Flatten: add location_query to existing $and array
+                final_filters = {"$and": filters["$and"] + [location_query]}
+            else:
+                final_filters = {"$and": [filters, location_query]}
+        else:
+            final_filters = filters
+
+        # Get all events matching filters
+        events_cursor = self.collection.find(final_filters)
+        events_list = await events_cursor.to_list(length=None)
+        events = [Event(**event) for event in events_list]
+
+        # Move availability filtering into the MongoDB query for efficiency
+        if availability_days:
+            # Map day names to MongoDB $dayOfWeek numbers (1=Sunday, 2=Monday, ..., 7=Saturday)
+            day_name_to_mongo = {
+                "Sunday": 1,
+                "Monday": 2,
+                "Tuesday": 3,
+                "Wednesday": 4,
+                "Thursday": 5,
+                "Friday": 6,
+                "Saturday": 7,
+            }
+            mongo_weekdays = [
+                day_name_to_mongo[day] for day in availability_days if day in day_name_to_mongo
+            ]
+
+            # Build $expr for day-of-week and time overlap
+            expr_conditions = []
+            if mongo_weekdays:
+                expr_conditions.append({
+                    "$in": [
+                        { "$dayOfWeek": "$start_date_time" },
+                        mongo_weekdays
+                    ]
+                })
+
+            # Parse time strings if provided
+            if availability_start_time and availability_end_time:
+                try:
+                    start_hour, start_minute = map(int, availability_start_time.split(":"))
+                    end_hour, end_minute = map(int, availability_end_time.split(":"))
+                except (ValueError, AttributeError):
+                    start_hour = start_minute = end_hour = end_minute = None
+
+                if None not in (start_hour, start_minute, end_hour, end_minute):
+                    # Event overlaps if: event starts before availability ends AND event ends after availability starts
+                    expr_conditions.append({
+                        "$and": [
+                            {
+                                "$or": [
+                                    { "$lt": [
+                                        { "$hour": "$start_date_time" },
+                                        end_hour
+                                    ]},
+                                    {
+                                        "$and": [
+                                            { "$eq": [ { "$hour": "$start_date_time" }, end_hour ] },
+                                            { "$lte": [ { "$minute": "$start_date_time" }, end_minute ] }
+                                        ]
+                                    }
+                                ]
+                            },
+                            {
+                                "$or": [
+                                    { "$gt": [
+                                        { "$hour": "$end_date_time" },
+                                        start_hour
+                                    ]},
+                                    {
+                                        "$and": [
+                                            { "$eq": [ { "$hour": "$end_date_time" }, start_hour ] },
+                                            { "$gte": [ { "$minute": "$end_date_time" }, start_minute ] }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    })
+
+            # Add $expr to the MongoDB query
+            if expr_conditions:
+                if "query" not in locals():
+                    query = {}
+                query["$expr"] = { "$and": expr_conditions } if len(expr_conditions) > 1 else expr_conditions[0]
+
+        # Now fetch events from the database using the updated query
+        # (Assume the rest of the code uses this query to fetch events)
+        # Handle "been before" filter - requires volunteer_event_ids from endpoint
+        if sort_by == "been_before" and volunteer_event_ids is not None:
+            # Separate events into "been before" and "not been before"
+            been_before = [e for e in events if e.id in volunteer_event_ids]
+            not_been_before = [e for e in events if e.id not in volunteer_event_ids]
+
+            # Sort: been before first, then not been before
+            events = been_before + not_been_before
+
+        # Apply sorting
+        if sort_by == "new_additions":
+            events.sort(key=lambda x: x.created_at, reverse=True)
+        elif sort_by == "coins_low_to_high":
+            events.sort(key=lambda x: x.coins)
+        elif sort_by == "coins_high_to_low":
+            events.sort(key=lambda x: x.coins, reverse=True)
+        elif sort_by == "been_before":
+            # Already sorted above if volunteer_event_ids provided
+            if volunteer_event_ids is None:
+                # If no volunteer_event_ids, can't sort by "been before"
+                raise HTTPException(
+                    status_code=400,
+                    detail='volunteer_event_ids must be provided when sort_by="been_before".'
+                )
+
+        return events
 
     async def get_events_by_location(self, distance: float, location: Location) -> list[Event]:
         events_list = await self.collection.find(
@@ -100,13 +275,11 @@ class EventModel:
         )
         return [Event(**event) for event in events_list]
 
-    async def update_event_status(
-        self, event_id: str, event: UpdateEventStatusRequest
-    ) -> Event | None:
+    async def update_event(self, event_id: str, event: UpdateEventStatusRequest) -> Event | None:
         event_data = await self.collection.find_one({"_id": ObjectId(event_id)})
         if event_data:
             updated_data = event.model_dump(
-                mode="json", by_alias=True, exclude_none=True, exclude={"_id", "id"}
+                mode="json", by_alias=True, exclude_unset=True, exclude={"_id", "id"}
             )
             await self.collection.update_one({"_id": ObjectId(event_id)}, {"$set": updated_data})
             event_data.update(updated_data)
@@ -140,7 +313,9 @@ class EventModel:
     async def search_events(
         self,
         q: str | None = None,
-        sort_by: Literal["start_date_time", "name", "coins", "max_volunteers"] = "start_date_time",
+        sort_by: Literal[
+            "start_date_time", "name", "coins", "max_volunteers", "created_at"
+        ] = "start_date_time",
         sort_dir: Literal["asc", "desc"] = "asc",
         statuses: list[EventStatus] | None = None,
         organization_id: str | None = None,
@@ -160,10 +335,7 @@ class EventModel:
                 filters = filters_status
 
         if organization_id:
-            try:
-                filters["organization_id"] = ObjectId(organization_id)
-            except Exception:
-                raise HTTPException(status_code=400, detail="Invalid organization_id") from None
+            filters["organization_id"] = organization_id
 
         if age is not None:
             age_clause = {
@@ -201,7 +373,7 @@ class EventModel:
             else:
                 filters = filters_q
 
-        if lat and lng and distance_km:
+        if lat is not None and lng is not None and distance_km is not None:
             location = Location(type="Point", coordinates=[lng, lat])
             max_distance_meters = int(distance_km * 1000)
             filters["location"] = {
@@ -217,6 +389,7 @@ class EventModel:
             .limit(max(1, min(200, limit)))
         )
         docs = await cursor.to_list(length=None)
+
         return [Event(**d) for d in docs]
 
     async def update_event_image(self, event_id: str, s3_key: str) -> str:
