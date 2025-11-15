@@ -128,7 +128,12 @@ class RegistrationModel:
     async def check_out_registration(self, volunteer_id: str, event_id: str) -> Registration:
         await self.registrations.update_one(
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)},
-            {"$set": {"clocked_out": datetime.now()}},
+            {
+                "$set": {
+                    "clocked_out": datetime.now(),
+                    "registration_status": RegistrationStatus.COMPLETED,  # ADD THIS LINE
+                }
+            },
         )
         updated_doc = await self.registrations.find_one(
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)}
