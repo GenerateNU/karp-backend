@@ -22,6 +22,8 @@ class Item(BaseModel):
     time_posted: datetime = datetime.now()
     expiration: datetime
     price: int
+    tags: list[str] = []
+    description: str | None = None
     image_s3_key: str | None = None
 
     @field_validator("id", "vendor_id", mode="before")
@@ -53,6 +55,9 @@ class ItemSortParam(str, Enum):
 class CreateItemRequest(BaseModel):
     name: str
     expiration: datetime
+    description: str | None = None
+    tags: list[str] | None = None
+    image_s3_key: str | None = None
 
 
 class UpdateItemRequest(BaseModel):

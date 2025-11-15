@@ -21,7 +21,6 @@ class Vendor(BaseModel):
     name: str
     business_type: str
     status: VendorStatus = VendorStatus.IN_REVIEW
-    approved: bool = False
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
 

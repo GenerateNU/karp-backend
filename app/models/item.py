@@ -30,6 +30,9 @@ class ItemModel:
         item_data["status"] = ItemStatus.ACTIVE
         item_data["price"] = 30  # set to default 30 for now
 
+        if "tags" not in item_data:
+            item_data["tags"] = []
+
         result = await self.collection.insert_one(item_data)
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
 

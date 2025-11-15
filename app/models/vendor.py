@@ -4,7 +4,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 
 from app.database.mongodb import db
 from app.models.user import user_model
-from app.schemas.vendor import CreateVendorRequest, UpdateVendorRequest, Vendor
+from app.schemas.vendor import CreateVendorRequest, UpdateVendorRequest, Vendor, VendorStatus
 
 
 class VendorModel:
@@ -24,6 +24,7 @@ class VendorModel:
         if not vendor_data:
             raise HTTPException(status_code=404, detail="Vendor is not found or it is not approved")
         if vendor_data:
+            print(vendor_data)
             return Vendor(**vendor_data)
         return None
 
@@ -49,7 +50,9 @@ class VendorModel:
         return Vendor(**updated_doc)
 
     async def approve_vendor(self, vendor_id: str) -> None:
-        await self.collection.update_one({"_id": vendor_id}, {"$set": {"approved": True}})
+        await self.collection.update_one(
+            {"_id": vendor_id}, {"$set": {"status": VendorStatus.APPROVED}}
+        )
 
     async def delete_all_vendors(self) -> None:
         await self.collection.delete_many({})
