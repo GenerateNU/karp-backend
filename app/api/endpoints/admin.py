@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from app.api.endpoints.user import get_current_admin
+from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.admin import admin_model
 from app.models.event import event_model
 from app.models.item import item_model
@@ -16,11 +16,10 @@ from app.schemas.admin import (
     UpdateOrganizationRequest,
     UpdateVendorRequest,
 )
-from app.schemas.user import User
-from app.schemas.organization import Status, UpdateOrganizationRequest
+from app.schemas.event import EventStatus, UpdateEventStatusRequest
+from app.schemas.organization import OrganizationStatus
+from app.schemas.user import User, UserType
 from app.schemas.vendor import VendorStatus
-from app.schemas.item import UpdateItemRequest
-from app.schemas.event import UpdateEventStatusRequest, Status as EventStatus
 
 router = APIRouter()
 
@@ -50,6 +49,21 @@ async def create_admin(
     return AdminResponse(**admin_dict)
 
 
+@router.get("/me", response_model=AdminResponse)
+async def get_admin_me(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> AdminResponse:
+    if current_user.user_type != UserType.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Only admins can view admin profile"
+        )
+
+    admin = await admin_model.get_admin_by_id(current_user.entity_id)
+    if not admin:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Admin not found")
+    return AdminResponse(**admin.model_dump())
+
+
 @router.get("/all", response_model=list[AdminResponse])
 async def get_all_admins(
     current_user: Annotated[User, Depends(get_current_admin)],
@@ -67,7 +81,7 @@ async def change_org_status(
 
     # Update organization status
 
-    update_data = UpdateOrganizationRequest(status=Status(approval_data.status))
+    update_data = UpdateOrganizationRequest(status=OrganizationStatus(approval_data.status))
     await org_model.update_organization(approval_data.organization_id, update_data)
 
 
@@ -98,4 +112,4 @@ async def change_event_status(
 ) -> None:
 
     update_data = UpdateEventStatusRequest(status=EventStatus(approval_data.status))
-    await event_model.update_event_status(approval_data.event_id, update_data)
+    await event_model.update_event(approval_data.event_id, update_data)

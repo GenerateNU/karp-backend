@@ -14,6 +14,8 @@ class ItemModel:
     _instance: "ItemModel" = None
 
     def __init__(self):
+        if ItemModel._instance is not None:
+            raise Exception("This class is a singleton!")
         self.collection: AsyncIOMotorCollection = db["items"]
 
     @classmethod
@@ -28,7 +30,10 @@ class ItemModel:
         item_data["time_posted"] = datetime.now()
         item_data["vendor_id"] = ObjectId(vendor_id)
         item_data["status"] = ItemStatus.ACTIVE
-        item_data["price"] = 30  # set to default 30 for now
+        item_data["price"] = int(item.dollar_price * 100)
+
+        if "tags" not in item_data:
+            item_data["tags"] = []
 
         result = await self.collection.insert_one(item_data)
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
@@ -42,12 +47,18 @@ class ItemModel:
 
     async def get_items(
         self,
+        status: ItemStatus | None = None,
         search_text: str | None = None,
         vendor_id: str | None = None,
         sort_by: ItemSortParam | None = None,
         sort_order: SortOrder = SortOrder.ASC,
     ) -> list[Item]:
         query = {}
+
+        if status:
+            query["status"] = status
+        else:
+            query["status"] = {"$ne": ItemStatus.APPROVED}
 
         if search_text:
             query["name"] = {
@@ -84,7 +95,7 @@ class ItemModel:
         item_obj_id = parse_object_id(item_id)
 
         result = await self.collection.update_one(
-            {"_id": item_obj_id}, {"$set": {"status": "inactive"}}
+            {"_id": item_obj_id}, {"$set": {"status": ItemStatus.PUBLISHED}}
         )
 
         if result.matched_count == 0:
@@ -94,7 +105,7 @@ class ItemModel:
         item_obj_id = parse_object_id(item_id)
 
         result = await self.collection.update_one(
-            {"_id": item_obj_id}, {"$set": {"status": "active"}}
+            {"_id": item_obj_id}, {"$set": {"status": ItemStatus.ACTIVE}}
         )
 
         if result.matched_count == 0:
@@ -105,6 +116,10 @@ class ItemModel:
 
         # excludes updating fields not provided
         updated_data = updated_item.model_dump(exclude_unset=True)
+
+        if "dollar_price" in updated_data:
+            updated_data["price"] = int(updated_data["dollar_price"] * 100)
+            del updated_data["dollar_price"]
 
         result = await db["items"].update_one({"_id": item_obj_id}, {"$set": updated_data})
 

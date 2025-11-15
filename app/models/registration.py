@@ -14,6 +14,8 @@ class RegistrationModel:
     _instance: "RegistrationModel" = None
 
     def __init__(self):
+        if RegistrationModel._instance is not None:
+            raise Exception("This class is a singleton!")
         self.registrations: AsyncIOMotorCollection = db["registrations"]
 
     @classmethod

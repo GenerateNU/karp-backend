@@ -8,6 +8,8 @@ class ItemService:
     _instance: "ItemService" = None
 
     def __init__(self, item_model=item_model):
+        if ItemService._instance is not None:
+            raise Exception("This class is a singleton!")
         self.item_model = item_model
 
     @classmethod
