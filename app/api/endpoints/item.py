@@ -6,7 +6,7 @@ from app.api.endpoints.user import get_current_user
 from app.core.enums import SortOrder
 from app.models.item import ItemSortParam, item_model
 from app.models.vendor import vendor_model
-from app.schemas.item import CreateItemRequest, Item, UpdateItemRequest
+from app.schemas.item import CreateItemRequest, Item, ItemStatus, UpdateItemRequest
 from app.schemas.s3 import PresignedUrlResponse
 from app.schemas.user import User, UserType
 from app.schemas.vendor import VendorStatus
@@ -39,12 +39,13 @@ async def post_item(
 
 @router.get("/all", response_model=list[Item])
 async def get_items(
+    status: Annotated[ItemStatus | None, None] = None,
     search_text: str | None = None,
     vendor_id: str | None = None,
     sort_by: ItemSortParam | None = None,
     sort_order: SortOrder = SortOrder.ASC,
 ) -> list[Item]:
-    return await item_model.get_items(search_text, vendor_id, sort_by, sort_order)
+    return await item_model.get_items(status, search_text, vendor_id, sort_by, sort_order)
 
 
 @router.get("/{item_id}", response_model=Item)
@@ -54,26 +55,26 @@ async def get_item(item_id: str) -> Item:
 
 @router.put("/deactivate/{item_id}")
 async def deactivate_item(item_id: str, current_user: Annotated[User, Depends(get_current_user)]):
-    if current_user.entity_id is None:
+    if current_user.user_type != UserType.ADMIN and current_user.entity_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You are not associated with any vendor",
         )
-
-    await item_service.authorize_vendor(item_id, current_user.id)
+    if current_user.user_type != UserType.ADMIN:
+        await item_service.authorize_vendor(item_id, current_user.entity_id)
     await item_model.deactivate_item(item_id)
     return {"message": "Item deactivated successfully"}
 
 
 @router.put("/activate/{item_id}")
 async def activate_item(item_id: str, current_user: Annotated[User, Depends(get_current_user)]):
-    if current_user.entity_id is None:
+    if current_user.user_type != UserType.ADMIN and current_user.entity_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You are not associated with any vendor",
         )
-
-    await item_service.authorize_vendor(item_id, current_user.id)
+    if current_user.user_type != UserType.ADMIN:
+        await item_service.authorize_vendor(item_id, current_user.entity_id)
     await item_model.activate_item(item_id)
     return {"message": "Item activated successfully"}
 
@@ -84,13 +85,13 @@ async def update_item(
     item_id: str,
     current_user: Annotated[User, Depends(get_current_user)],
 ):
-    if current_user.entity_id is None:
+    if current_user.user_type != UserType.ADMIN and current_user.entity_id is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You are not associated with any vendor",
         )
-
-    await item_service.authorize_vendor(item_id, current_user.id)
+    if current_user.user_type != UserType.ADMIN:
+        await item_service.authorize_vendor(item_id, current_user.entity_id)
     await item_model.update_item(updated_item, item_id)
     return {"message": "Item updated successfully"}
 

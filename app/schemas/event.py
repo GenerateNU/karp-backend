@@ -1,21 +1,33 @@
 from datetime import UTC, datetime
+from enum import Enum
 
 from bson import ObjectId
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.location import Location
-from app.schemas.status import Status
+
+
+class EventStatus(str, Enum):
+    PUBLISHED = "PUBLISHED"
+    CANCELLED = "CANCELLED"
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
 
 
 class Event(BaseModel):
-    id: str = Field(validation_alias=AliasChoices("_id", "id"), serialization_alias="id")
+    id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("_id", "id"),
+        serialization_alias="id",
+    )
     name: str
     address: str
     location: Location | None = None
     start_date_time: datetime
     end_date_time: datetime
     organization_id: str
-    status: Status
+    status: EventStatus = EventStatus.PUBLISHED
     max_volunteers: int
     coins: int
     description: str | None = None
@@ -25,6 +37,9 @@ class Event(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     created_by: str
     image_s3_key: str | None = None
+    manual_difficulty_coefficient: float = 1.0
+    ai_difficulty_coefficient: float = 1.0
+    difficulty_coefficient: float = 1.0
 
     model_config = ConfigDict(
         use_enum_values=True,
@@ -47,15 +62,16 @@ class CreateEventRequest(BaseModel):
     start_date_time: datetime
     end_date_time: datetime
     max_volunteers: int
-    coins: int
     description: str | None = None
     keywords: list[str] | None = None
     age_min: int | None = None
     age_max: int | None = None
+    manual_difficulty_coefficient: float = 1.0
+    status: EventStatus = EventStatus.PUBLISHED
 
 
 class UpdateEventStatusRequest(BaseModel):
-    status: Status | None = None
+    status: EventStatus | None = None
     name: str | None = None
     location: str | None = None
     max_volunteers: int | None = None

@@ -1,12 +1,10 @@
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal
 
 from bson import ObjectId
 from fastapi import HTTPException
 
 from app.database.mongodb import db
-from app.models.user import user_model
-from app.schemas.event import CreateEventRequest, Event, Status, UpdateEventStatusRequest
+from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventStatusRequest
 from app.schemas.location import Location
 
 if TYPE_CHECKING:
@@ -17,7 +15,11 @@ class EventModel:
     _instance: "EventModel" = None
 
     def __init__(self):
+        if EventModel._instance is not None:
+            raise Exception("This class is a singleton!")
         self.collection: AsyncIOMotorCollection = db["events"]
+
+        self.manual_difficulty_coefficient_coefficient = 0.2
 
     @classmethod
     def get_instance(cls) -> "EventModel":
@@ -32,29 +34,50 @@ class EventModel:
             pass
 
     async def create_event(
-        self, event: CreateEventRequest, user_id: str, location: Location
+        self,
+        event: CreateEventRequest,
+        user_id: str,
+        organization_id: str,
+        location: Location,
+        ai_difficulty_coefficient: float,
     ) -> Event:
         event_data = event.model_dump(mode="json", by_alias=True, exclude={"_id", "id"})
-
-        event_data["status"] = Status.PUBLISHED
-        # Get the organization entity_id associated with this user
-        user = await user_model.get_by_id(user_id)
-        if not user or not user.entity_id:
-            raise HTTPException(
-                status_code=400, detail="User is not associated with an organization"
-            )
-        event_data["organization_id"] = user.entity_id
-        event_data["created_at"] = datetime.now(UTC)
+        event_data["organization_id"] = organization_id
         event_data["created_by"] = user_id
         event_data["location"] = location.model_dump()
+        event_data["ai_difficulty_coefficient"] = ai_difficulty_coefficient
 
-        result = await self.collection.insert_one(event_data)
+        difficulty_coefficient = event_data.get(
+            "manual_difficulty_coefficient", 1.0
+        ) * self.manual_difficulty_coefficient_coefficient + ai_difficulty_coefficient * (
+            1 - self.manual_difficulty_coefficient_coefficient
+        )
+
+        event_data["difficulty_coefficient"] = difficulty_coefficient
+
+        # Compute the max possible amount of coins earnable as
+        # (end_datetime - start_datetime)[in hours] * difficulty_coefficient * 100
+        coins = int(
+            (event.end_date_time - event.start_date_time).total_seconds()
+            / 3600
+            * difficulty_coefficient
+            * 100
+        )
+        event_data["coins"] = coins
+
+        event = Event(**event_data)
+
+        result = await self.collection.insert_one(
+            event.model_dump(mode="json", by_alias=True, exclude={"_id", "id"})
+        )
         event_data["_id"] = result.inserted_id
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
         return Event(**inserted_doc)
 
     async def get_all_events(self) -> list[Event]:
-        events_list = await self.collection.find({"status": Status.PUBLISHED}).to_list(length=None)
+        events_list = await self.collection.find({"status": EventStatus.PUBLISHED}).to_list(
+            length=None
+        )
         return [Event(**event) for event in events_list]
 
     async def get_events_by_location(self, distance: float, location: Location) -> list[Event]:
@@ -99,26 +122,26 @@ class EventModel:
             raise HTTPException(status_code=404, detail="Event not found")
 
         status = event["status"]
-        if status in [Status.DRAFT, Status.COMPLETED]:
+        if status in [EventStatus.DRAFT, EventStatus.COMPLETED]:
             await self.collection.update_one(
-                {"_id": ObjectId(event_id)}, {"$set": {"status": Status.DELETED}}
+                {"_id": ObjectId(event_id)}, {"$set": {"status": EventStatus.DELETED}}
             )
-        elif status in [Status.PUBLISHED]:
+        elif status in [EventStatus.PUBLISHED]:
             await self.collection.update_one(
-                {"_id": ObjectId(event_id)}, {"$set": {"status": Status.CANCELLED}}
+                {"_id": ObjectId(event_id)}, {"$set": {"status": EventStatus.CANCELLED}}
             )
         else:
             raise HTTPException(status_code=400, detail="Event cannot be deleted")
 
     async def delete_all_events(self) -> None:
-        await self.collection.update_many({}, {"$set": {"status": Status.DELETED}})
+        await self.collection.update_many({}, {"$set": {"status": EventStatus.DELETED}})
 
     async def search_events(
         self,
         q: str | None = None,
         sort_by: Literal["start_date_time", "name", "coins", "max_volunteers"] = "start_date_time",
         sort_dir: Literal["asc", "desc"] = "asc",
-        statuses: list[Status] | None = None,
+        statuses: list[EventStatus] | None = None,
         organization_id: str | None = None,
         age: int | None = None,
         lat: float | None = None,

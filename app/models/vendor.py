@@ -11,6 +11,8 @@ class VendorModel:
     _instance: "VendorModel" = None
 
     def __init__(self):
+        if VendorModel._instance is not None:
+            raise Exception("This class is a singleton!")
         self.collection: AsyncIOMotorCollection = db["vendors"]
 
     @classmethod

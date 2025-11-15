@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
-from app.api.endpoints.user import get_current_user
+from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.vendor import CreateVendorRequest, Vendor, vendor_model
 from app.schemas.user import User, UserType
 
@@ -42,13 +42,7 @@ async def get_vendors():
 
 
 @router.get("/approve/{vendor_id}", response_model=None)
-async def approve_vendor(vendor_id: str, current_user: Annotated[User, Depends(get_current_user)]):
-    if current_user.user_type != UserType.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can approve vendors",
-        )
-
+async def approve_vendor(vendor_id: str, current_user: Annotated[User, Depends(get_current_admin)]):
     return await vendor_model.approve_vendor(vendor_id)
 
 

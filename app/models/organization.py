@@ -10,7 +10,7 @@ from app.schemas.location import Location
 from app.schemas.organization import (
     CreateOrganizationRequest,
     Organization,
-    Status,
+    OrganizationStatus,
     UpdateOrganizationRequest,
 )
 
@@ -19,6 +19,8 @@ class OrganizationModel:
     _instance: "OrganizationModel" = None
 
     def __init__(self):
+        if OrganizationModel._instance is not None:
+            raise Exception("This class is a singleton!")
         self.collection: AsyncIOMotorCollection = db["organizations"]
 
     @classmethod
@@ -37,7 +39,7 @@ class OrganizationModel:
         self,
         sort_by: Literal["name", "status", "distance"] = "name",
         sort_dir: Literal["asc", "desc"] = "asc",
-        statuses: list[Status] | None = None,
+        statuses: list[OrganizationStatus] | None = None,
         lat: float | None = None,
         lng: float | None = None,
         distance_km: float | None = None,
@@ -51,7 +53,7 @@ class OrganizationModel:
         elif sort_by == "status":
             filters_status = None
         else:
-            filters_status = {"status": Status.APPROVED}
+            filters_status = {"status": OrganizationStatus.APPROVED}
 
         filters = filters_status
 
@@ -125,7 +127,9 @@ class OrganizationModel:
         return [Organization(**d) for d in docs]
 
     async def get_organization_by_id(self, id: str) -> Organization:
-        org = await self.collection.find_one({"_id": ObjectId(id), "status": Status.APPROVED})
+        org = await self.collection.find_one(
+            {"_id": ObjectId(id), "status": OrganizationStatus.APPROVED}
+        )
 
         if not org:
             raise HTTPException(
@@ -139,7 +143,7 @@ class OrganizationModel:
         self, organization: CreateOrganizationRequest, user_id: str, location: Location
     ) -> Organization:
         org_data = organization.model_dump()
-        org_data["status"] = Status.IN_REVIEW
+        org_data["status"] = OrganizationStatus.PENDING
         org_data["location"] = location.model_dump()
 
         result = await self.collection.insert_one(org_data)
@@ -163,7 +167,7 @@ class OrganizationModel:
 
     async def delete_organization(self, id: str) -> None:
         await self.collection.update_one(
-            {"_id": ObjectId(id)}, {"$set": {"status": Status.DELETED}}
+            {"_id": ObjectId(id)}, {"$set": {"status": OrganizationStatus.DELETED}}
         )
 
     async def search_organizations(
