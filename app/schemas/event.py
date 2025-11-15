@@ -5,6 +5,7 @@ from bson import ObjectId
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from app.schemas.location import Location
+from app.schemas.volunteer import EventType
 
 
 class EventStatus(str, Enum):
@@ -32,6 +33,7 @@ class Event(BaseModel):
     coins: int
     description: str | None = None
     keywords: list[str] | None = None
+    tags: list[EventType] = Field(default_factory=list)
     age_min: int | None = None
     age_max: int | None = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -64,6 +66,7 @@ class CreateEventRequest(BaseModel):
     max_volunteers: int
     description: str | None = None
     keywords: list[str] | None = None
+    tags: list[EventType] = Field(default_factory=list)
     age_min: int | None = None
     age_max: int | None = None
     manual_difficulty_coefficient: float = 1.0
@@ -80,6 +83,7 @@ class UpdateEventStatusRequest(BaseModel):
     coins: int | None = None
     description: str | None = None
     keywords: list[str] | None = None
+    tags: list[EventType] | None = None
     age_min: int | None = None
     age_max: int | None = None
 
