@@ -31,6 +31,7 @@ class EventModel:
     async def create_indexes(self):
         try:
             await self.collection.create_index([("location", "2dsphere")])
+            await self.collection.create_index("tags")
         except Exception:
             pass
 

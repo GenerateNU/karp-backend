@@ -24,6 +24,12 @@ class RegistrationModel:
             RegistrationModel._instance = cls()
         return RegistrationModel._instance
 
+    async def create_indexes(self) -> None:
+        try:
+            await self.registrations.create_index([("volunteer_id", 1), ("registration_status", 1)])
+        except Exception:
+            pass
+
     async def get_volunteers_by_event(self, event_id: str) -> list[Registration]:
         event = await event_model.get_event_by_id(event_id)
         if not event:

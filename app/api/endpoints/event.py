@@ -12,6 +12,7 @@ from app.schemas.user import User, UserType
 from app.services.event import event_service
 from app.services.geocoding import geocoding_service
 from app.services.s3 import s3_service
+from app.services.similarity_computation import similarity_computation_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -231,13 +232,26 @@ async def create_event(
         event.description or ""
     )
 
-    return await event_model.create_event(
+    created_event = await event_model.create_event(
         event,
         current_user.id,
         current_user.entity_id,
         coordinates,
         ai_difficulty_coefficient=ai_difficulty_coefficient,
     )
+
+    if created_event.status == EventStatus.PUBLISHED and created_event.id:
+        try:
+            import asyncio
+
+            asyncio.create_task(
+                similarity_computation_service.compute_similarities_for_event(created_event.id)
+            )
+            logger.info(f"Triggered similarity computation for new event {created_event.id}")
+        except Exception as e:
+            logger.error(f"Failed to trigger similarity computation: {e}")
+
+    return created_event
 
 
 @router.delete("/clear", response_model=None)
@@ -262,7 +276,6 @@ async def update_event(
     event: Annotated[UpdateEventStatusRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> Event | None:
-
     if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -277,7 +290,31 @@ async def update_event(
     # Admins can bypass org authorization
     if current_user.user_type != UserType.ADMIN:
         await event_service.authorize_org(event_id, current_user.entity_id)
-    updated_event = await event_model.update_event(event_id, event)
+
+    old_event = await event_model.get_event_by_id(event_id)
+    old_status = old_event.status if old_event else None
+
+    updated_event = await event_model.update_status(event_id, event)
+
+    if updated_event and updated_event.id:
+        new_status = updated_event.status
+        should_recompute = (
+            old_status != EventStatus.PUBLISHED and new_status == EventStatus.PUBLISHED
+        ) or (new_status == EventStatus.PUBLISHED and event.tags is not None)
+
+        if should_recompute:
+            try:
+                import asyncio
+
+                asyncio.create_task(
+                    similarity_computation_service.compute_similarities_for_event(updated_event.id)
+                )
+                logger.info(
+                    f"Triggered similarity computation for updated event {updated_event.id}"
+                )
+            except Exception as e:
+                logger.error(f"Failed to trigger similarity computation: {e}")
+
     return updated_event
 
 
@@ -310,7 +347,6 @@ async def get_event_upload_url(
     filetype: str,
     current_user: Annotated[User, Depends(get_current_user)],
 ):
-
     if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
