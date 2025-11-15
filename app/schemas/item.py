@@ -39,6 +39,7 @@ class ItemSortParam(str, Enum):
     DATE = "date"
     NAME = "name"
     COINS = "coins"
+    CREATED_AT = "created_at"
 
     @property
     def field_name(self) -> str:
@@ -46,6 +47,7 @@ class ItemSortParam(str, Enum):
             ItemSortParam.DATE: "time_posted",
             ItemSortParam.NAME: "name",
             ItemSortParam.COINS: "price",
+            ItemSortParam.CREATED_AT: "created_at",
         }
         return field_mapping[self]
 
