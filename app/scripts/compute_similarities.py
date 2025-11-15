@@ -1,13 +1,3 @@
-"""
-Batch job to compute event similarities.
-
-This script should be run via cron at 2 AM daily:
-0 2 * * * cd /path/to/project && /path/to/venv/bin/python -m app.scripts.compute_similarities
-
-Or run manually for testing:
-python -m app.scripts.compute_similarities
-"""
-
 import asyncio
 import logging
 import sys

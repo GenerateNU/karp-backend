@@ -11,8 +11,8 @@ from app.models.event_similarity import event_similarity_model
 from app.models.registration import registration_model
 from app.models.volunteer import volunteer_model
 from app.schemas.event import Event
+from app.schemas.event import EventStatus as Status
 from app.schemas.registration import RegistrationStatus
-from app.schemas.status import Status
 from app.schemas.volunteer import EventType
 
 
