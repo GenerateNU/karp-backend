@@ -3,12 +3,15 @@ from fastapi import HTTPException, status
 from app.models.event import event_model
 from app.schemas.event import Event
 from app.schemas.location import Location
+from app.services.ai import ai_service
 
 
 class EventService:
     _instance: "EventService" = None
 
     def __init__(self, event_model=event_model):
+        if EventService._instance is not None:
+            raise Exception("This class is a singleton!")
         self.event_model = event_model
 
     @classmethod
@@ -42,6 +45,27 @@ class EventService:
         location = Location(type="Point", coordinates=[lng, lat])
         max_distance_meters = int(distance_km * 1000)
         return await self.event_model.get_events_by_location(max_distance_meters, location)
+
+    async def estimate_event_difficulty(self, description: str) -> float:
+        role = (
+            "You are an expert event planner. Given an event description,"
+            "rate the difficulty of organizing the event on a scale from 0.0 to 2.0,"
+            "where 0.0 is very easy and 2.0 is extremely difficult. Provide only the"
+            "numeric rating as a decimal."
+        )
+        prompt = f"Event Description: {description}\n\nPlease provide the difficulty rating:"
+        try:
+            response = await ai_service.generate_text(role, prompt)
+        except Exception:
+            return 1
+        try:
+            difficulty = float(response.strip())
+            if 0.0 <= difficulty <= 2.0:
+                return difficulty
+            else:
+                return 1
+        except Exception:
+            return 1
 
 
 event_service = EventService.get_instance()

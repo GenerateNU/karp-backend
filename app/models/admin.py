@@ -12,6 +12,8 @@ class AdminModel:
     _instance: "AdminModel" = None
 
     def __init__(self):
+        if AdminModel._instance is not None:
+            raise Exception("This class is a singleton!")
         self.collection: AsyncIOMotorCollection = db["admins"]
 
     @classmethod

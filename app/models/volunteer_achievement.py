@@ -19,6 +19,8 @@ class VolunteerAchievementModel:
     _instance: "VolunteerAchievementModel" = None
 
     def __init__(self):
+        if VolunteerAchievementModel._instance is not None:
+            raise Exception("This class is a singleton!")
         self.collection: AsyncIOMotorCollection = db["volunteerAchievements"]
 
     @classmethod

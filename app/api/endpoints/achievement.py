@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi_cache.decorator import cache
 
-from app.api.endpoints.user import get_current_user
+from app.api.endpoints.user import get_current_admin, get_current_user
 from app.core.cache_constants import (
     ACHIEVEMENT_IMAGES_NAMESPACE,
     VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE,
@@ -34,10 +34,8 @@ router = APIRouter()
 @router.post("/new", response_model=Achievement)
 async def post_achievement(
     achievement: Annotated[CreateAchievementRequest, Body(...)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_admin)],
 ):
-    if current_user.user_type not in [UserType.ADMIN]:
-        return {"message": "Only users with the admin role can create an achievement"}
     return await achievement_model.create_achievement(achievement)
 
 
@@ -69,19 +67,15 @@ async def get_achievement(achievement_id: str) -> Achievement:
 
 @router.put("/deactivate/{achievement_id}")
 async def deactivate_achievement(
-    achievement_id: str, current_user: Annotated[User, Depends(get_current_user)]
+    achievement_id: str, current_user: Annotated[User, Depends(get_current_admin)]
 ):
-    if current_user.user_type not in [UserType.ADMIN]:
-        return {"message": "Only users with the admin role can deactivate an achievement"}
     return {"message": "Achievement deactivated successfully"}
 
 
 @router.put("/activate/{achievement_id}")
 async def activate_achievement(
-    achievement_id: str, current_user: Annotated[User, Depends(get_current_user)]
+    achievement_id: str, current_user: Annotated[User, Depends(get_current_admin)]
 ):
-    if current_user.user_type not in [UserType.ADMIN]:
-        return {"message": "Only users with the admin role can activate an achievement"}
     await achievement_model.activate_achievement(achievement_id)
     return {"message": "Achievement activated successfully"}
 
@@ -90,7 +84,7 @@ async def activate_achievement(
 async def update_achievement(
     updated_achievement: Annotated[UpdateAchievementRequest, Body(...)],
     achievement_id: str,
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_admin)],
 ):
     if current_user.user_type not in [UserType.ADMIN]:
         return {"message": "Only users with the admin role can update an achievement"}
@@ -100,7 +94,7 @@ async def update_achievement(
 
 @router.delete("/{achievement_id}", response_model=None)
 async def delete_achievement(
-    achievement_id: str, current_user: Annotated[User, Depends(get_current_user)]
+    achievement_id: str, current_user: Annotated[User, Depends(get_current_admin)]
 ) -> None:
     if current_user.user_type not in [UserType.ADMIN]:
         return {"message": "Only users with the admin role can delete an achievement"}

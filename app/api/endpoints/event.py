@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
-from app.api.endpoints.user import get_current_user
+from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.event import event_model
 from app.models.organization import org_model
 from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
@@ -75,19 +75,19 @@ async def create_event(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only users with organization role can create an event",
         )
-
-    if current_user.entity_id is None and current_user.user_type != UserType.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You must be associated with an organization to create an event",
-        )
-
-    organization = await org_model.get_organization_by_id(current_user.entity_id)
-    if organization.status != Status.APPROVED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Your organization is not approved to create events",
-        )
+    # Non-admins must be associated to an approved organization
+    if current_user.user_type != UserType.ADMIN:
+        if current_user.entity_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You must be associated with an organization to create an event",
+            )
+        organization = await org_model.get_organization_by_id(current_user.entity_id)
+        if organization.status != Status.APPROVED:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Your organization is not approved to create events",
+            )
 
     if not event.address:
         raise HTTPException(
@@ -96,18 +96,24 @@ async def create_event(
         )
 
     coordinates = await geocoding_service.location_to_coordinates(event.address)
-    return await event_model.create_event(event, current_user.id, coordinates)
+
+    ai_difficulty_coefficient = await event_service.estimate_event_difficulty(
+        event.description or ""
+    )
+
+    return await event_model.create_event(
+        event,
+        current_user.id,
+        current_user.entity_id,
+        coordinates,
+        ai_difficulty_coefficient=ai_difficulty_coefficient,
+    )
 
 
 @router.delete("/clear", response_model=None)
 async def clear_events(
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_admin)],
 ) -> None:
-    if current_user.user_type != UserType.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins can delete all events",
-        )
     return await event_model.delete_all_events()
 
 
@@ -138,8 +144,9 @@ async def update_event_status(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must be associated with an organization to create an event",
         )
-
-    await event_service.authorize_org(event_id, current_user.entity_id)
+    # Admins can bypass org authorization
+    if current_user.user_type != UserType.ADMIN:
+        await event_service.authorize_org(event_id, current_user.entity_id)
     updated_event = await event_model.update_event_status(event_id, event)
     return updated_event
 
@@ -159,8 +166,9 @@ async def clear_event_by_id(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You must be associated with an organization to delete an event",
         )
-
-    await event_service.authorize_org(event_id, current_user.entity_id)
+    # Admins can bypass org authorization
+    if current_user.user_type != UserType.ADMIN:
+        await event_service.authorize_org(event_id, current_user.entity_id)
     return await event_model.delete_event_by_id(event_id)
 
 
