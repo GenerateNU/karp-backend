@@ -3,9 +3,10 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from app.api.endpoints.user import get_current_admin, get_current_user
+from app.models.user import user_model
 from app.models.vendor import CreateVendorRequest, Vendor, vendor_model
 from app.schemas.user import User, UserType
-from app.schemas.vendor import VendorStatus
+from app.schemas.vendor import UpdateVendorRequest, VendorStatus
 
 router = APIRouter()
 
@@ -50,3 +51,24 @@ async def approve_vendor(vendor_id: str, current_user: Annotated[User, Depends(g
 @router.delete("/clear", response_model=None)
 async def clear_vendors():
     return await vendor_model.delete_all_vendors()
+
+
+@router.put("/{vendor_id}", response_model=Vendor)
+async def update_vendor(
+    vendor_id: str,
+    vendor: Annotated[UpdateVendorRequest, Body(...)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Vendor:
+    if current_user.user_type != UserType.ADMIN:
+        if current_user.entity_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You are not associated with any vendor",
+            )
+        if not await user_model.owns_entity(current_user.id, vendor_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to update this vendor",
+            )
+
+    return await vendor_model.update_vendor(vendor_id, vendor)
