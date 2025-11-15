@@ -61,7 +61,7 @@ async def deactivate_item(item_id: str, current_user: Annotated[User, Depends(ge
             detail="You are not associated with any vendor",
         )
     if current_user.user_type != UserType.ADMIN:
-        await item_service.authorize_vendor(item_id, current_user.id)
+        await item_service.authorize_vendor(item_id, current_user.entity_id)
     await item_model.deactivate_item(item_id)
     return {"message": "Item deactivated successfully"}
 
