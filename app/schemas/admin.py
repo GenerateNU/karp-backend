@@ -1,15 +1,6 @@
-from enum import Enum
-
 from pydantic import BaseModel
 
 from .user import User
-
-
-class Status(str, Enum):
-    APPROVED = "APPROVED"
-    IN_REVIEW = "IN_REVIEW"
-    REJECTED = "REJECTED"
-    DELETED = "DELETED"
 
 
 class Admin(User):

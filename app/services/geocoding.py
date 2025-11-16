@@ -4,8 +4,6 @@ from httpx import AsyncClient
 from app.core.config import settings
 from app.schemas.location import Location
 
-GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"
-
 
 class GeocodingService:
     _instance: "GeocodingService" = None
@@ -13,6 +11,7 @@ class GeocodingService:
     def __init__(self):
         if GeocodingService._instance is not None:
             raise Exception("This class is a singleton!")
+        self.geocode_url = "https://maps.googleapis.com/maps/api/geocode/json"
 
     @classmethod
     def get_instance(cls) -> "GeocodingService":
@@ -23,7 +22,7 @@ class GeocodingService:
     async def location_to_coordinates(self, address: str) -> Location:
         params = {"address": address, "key": settings.GOOGLE_MAPS_KEY}
         async with AsyncClient(timeout=10) as client:
-            r = await client.get(GEOCODE_URL, params=params)
+            r = await client.get(self.geocode_url, params=params)
         if r.status_code != 200:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY, detail="Geocoding upstream error"

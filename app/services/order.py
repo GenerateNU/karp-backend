@@ -5,6 +5,7 @@ from app.models.order import order_model
 from app.models.volunteer import volunteer_model
 from app.schemas.order import Order
 from app.schemas.user import User, UserType
+from app.schemas.volunteer import UpdateVolunteerRequest
 
 
 class OrderService:
@@ -44,7 +45,7 @@ class OrderService:
         return order
 
     async def validate_and_process_order(self, item_id: str, volunteer_id: str) -> None:
-        item = await self.item_model.get_item(item_id)
+        item = await self.item_model.get_item_by_id(item_id)
         if not item:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
@@ -62,7 +63,9 @@ class OrderService:
 
         # Deduct coins from volunteer
         new_coin_balance = volunteer.coins - item.price
-        await volunteer_model.update_volunteer(volunteer_id, {"coins": new_coin_balance})
+        await volunteer_model.update_volunteer(
+            volunteer_id, UpdateVolunteerRequest(coins=new_coin_balance)
+        )
 
 
 order_service = OrderService.get_instance()

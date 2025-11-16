@@ -5,11 +5,12 @@ from fastapi import APIRouter, Body, Depends, HTTPException, status
 from app.api.endpoints.user import get_current_admin
 from app.models.volunteer import volunteer_model
 from app.models.volunteer_achievement import volunteer_achievement_model
-from app.schemas.user import User
+from app.schemas.user import User, UserType
 from app.schemas.volunteer_achievement import (
     CreateVolunteerAchievementRequest,
     VolunteerAchievement,
 )
+from app.services.volunteer_achievements import volunteer_achievements_service
 
 router = APIRouter()
 
@@ -19,7 +20,12 @@ async def create_volunteer_achievement(
     volunteer_achievement: Annotated[CreateVolunteerAchievementRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_admin)],
 ) -> VolunteerAchievement:
-    return await volunteer_achievement_model.create_volunteer_achievement(
+    if current_user.user_type not in [UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only users with the admin role can assign an achievement to a volunteer",
+        )
+    return await volunteer_achievements_service.create_volunteer_achievement(
         volunteer_achievement,
     )
 
@@ -41,11 +47,11 @@ async def get_volunteer_achievement_by_id(
 
 
 @router.get("/achievement/{achievement_id}", response_model=list[VolunteerAchievement])
-async def get_volunteer_achievements_by_achievement(
+async def get_volunteer_achievements_by_achievement_id(
     achievement_id: str,
 ) -> list[VolunteerAchievement]:
 
-    return await volunteer_achievement_model.get_volunteer_achievements_by_achievement(
+    return await volunteer_achievement_model.get_volunteer_achievements_by_achievement_id(
         achievement_id
     )
 
@@ -64,4 +70,11 @@ async def delete_volunteer_achievement(
     volunteer_achievement_id: str,
     current_user: Annotated[User, Depends(get_current_admin)],
 ) -> VolunteerAchievement:
-    return await volunteer_achievement_model.delete_volunteer_achievement(volunteer_achievement_id)
+    if current_user.user_type not in [UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only users with the admin role can delete a volunteer achievement",
+        )
+    return await volunteer_achievements_service.delete_volunteer_achievement(
+        volunteer_achievement_id
+    )

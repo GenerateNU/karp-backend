@@ -1,0 +1,2 @@
+ACHIEVEMENT_IMAGES_NAMESPACE = "achievement_images"
+VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE = "volunteer_received_achievements"

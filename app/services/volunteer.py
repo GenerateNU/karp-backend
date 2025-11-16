@@ -1,6 +1,11 @@
+import traceback
+
+from app.core.cache_constants import VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE
 from app.models.volunteer import volunteer_model
+from app.schemas.event import Event
 from app.schemas.registration import Registration
-from app.schemas.volunteer import Volunteer
+from app.schemas.volunteer import UpdateVolunteerRequest, Volunteer
+from app.services.cache import cache_service
 from app.services.volunteer_achievements import volunteer_achievements_service
 
 
@@ -18,7 +23,8 @@ class VolunteerService:
         self.volunteer_achievements_service = volunteer_achievements_service
 
         self.base_xp = 100
-        self.growth_factor = 1.15
+        self.growth_factor = 1.75
+        self.level_dict = self.create_level_to_xp_dict()
 
     @classmethod
     def get_instance(cls) -> "VolunteerService":
@@ -27,43 +33,61 @@ class VolunteerService:
         return VolunteerService._instance
 
     async def check_level_up(self, volunteer: Volunteer) -> None:
-        current_exp = volunteer["experience"]
-        new_level = self.compute_level_from_exp(current_exp)
+        current_exp = volunteer.experience
+        for level, xp in self.level_dict.items():
+            if current_exp <= xp:
+                new_level = level
+                break
 
-        if new_level != volunteer["level"]:
-            await self.volunteer_model.update_volunteer(volunteer["id"], {"level": new_level})
+        if new_level != volunteer.current_level:
+            update_volunteer_req = UpdateVolunteerRequest(current_level=new_level)
+            await self.volunteer_model.update_volunteer(volunteer.id, update_volunteer_req)
             await self.volunteer_achievements_service.add_level_up_achievement(
-                volunteer["id"], new_level
+                volunteer.id, new_level
             )
+        await cache_service.delete(VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE, volunteer.id)
 
-    def compute_level_from_exp(self, total_exp: int) -> int:
+    def create_level_to_xp_dict(self):
+        level_dict = {}
         level = 1
         required_for_next = self.base_xp
-        remaining = int(total_exp)
-        while remaining >= required_for_next:
-            remaining -= required_for_next
+        while level <= 100:
+            level_dict[level] = required_for_next
             level += 1
             required_for_next = int(required_for_next * self.growth_factor)
-            if required_for_next <= 0:
-                required_for_next = self.base_xp
-        return level
+        return level_dict
 
+    # computing the level everytime  -- not efficent
+    # def compute_level_from_exp(self, total_exp: int) -> int:
+    #     level = 1
+    #     required_for_next = self.base_xp
+    #     remaining = int(total_exp)
+    #     while remaining >= required_for_next:
+    #         remaining -= required_for_next
+    #         level += 1
+    #         required_for_next = int(required_for_next * self.growth_factor)
+    #         if required_for_next <= 0:
+    #             required_for_next = self.base_xp
+    #     return level
+
+    # TODO: verify this logic
     async def handle_volunteer_checkout_rewards(
-        self, registration: Registration, volunteer_id: str, event: dict, volunteer: dict
+        self, registration: Registration, volunteer_id: str, event: Event, volunteer: Volunteer
     ) -> None:
         try:
             if registration.clocked_in and registration.clocked_out:
-                duration = registration.clocked_out - registration.clocked_in
-                exp_gained = duration.total_seconds() / 36  # 100 exp/hr
-
-                await self.volunteer_model.update_volunteer(
-                    volunteer_id, {"$inc": {"experience": int(exp_gained)}}
+                new_experience = volunteer.experience + event.coins
+                new_coins = volunteer.coins + event.coins
+                update_volunteer_req = UpdateVolunteerRequest(
+                    experience=new_experience, coins=new_coins
                 )
-                await self.volunteer_model.update_volunteer(volunteer_id, {"coins": event["coins"]})
+                volunteer = await self.volunteer_model.update_volunteer(
+                    volunteer_id, update_volunteer_req
+                )
                 await self.check_level_up(volunteer)
         except Exception:
             print("Error handling volunteer checkout rewards")
-            pass
+            traceback.print_exc()
 
 
 volunteer_service = VolunteerService.get_instance()

@@ -1,7 +1,11 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from redis.asyncio import Redis
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api.endpoints import (
     achievement,
@@ -11,14 +15,19 @@ from app.api.endpoints import (
     item,
     order,
     organization,
+    recommendation,
     registration,
     user,
     vendor,
     volunteer,
     volunteer_achievement,
 )
+from app.core.config import settings
 from app.models.event import EventModel
+from app.models.event_similarity import EventSimilarityModel
 from app.models.organization import OrganizationModel
+from app.models.registration import RegistrationModel
+from app.models.volunteer import VolunteerModel
 
 
 @asynccontextmanager
@@ -26,12 +35,36 @@ async def lifespan(app: FastAPI):
     # Create geospatial indexes on startup
     event_model = EventModel.get_instance()
     org_model = OrganizationModel.get_instance()
+    event_similarity_model = EventSimilarityModel.get_instance()
+    registration_model = RegistrationModel.get_instance()
+    volunteer_model = VolunteerModel.get_instance()
     await event_model.create_indexes()
     await org_model.create_indexes()
+    await event_similarity_model.create_indexes()
+    await registration_model.create_indexes()
+    await volunteer_model.create_indexes()
+
+    # Initialize cache
+    redis_backend = RedisBackend(Redis.from_url(settings.REDIS_URL))
+
+    # Initialize FastAPICache
+    FastAPICache.init(
+        redis_backend,
+    )
     yield
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
 
 # CORS configuration
 origins = [
@@ -41,6 +74,7 @@ origins = [
     "http://localhost:3000",  # Add your frontend URL here
 ]
 
+app.add_middleware(NoCacheMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allow all origins in development
@@ -74,3 +108,5 @@ app.include_router(
 app.include_router(registration.router, prefix="/registration", tags=["registration"])
 
 app.include_router(order.router, prefix="/order", tags=["order"])
+
+app.include_router(recommendation.router, prefix="/recommendation", tags=["recommendation"])
