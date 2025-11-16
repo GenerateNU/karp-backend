@@ -1,10 +1,10 @@
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi_cache.decorator import cache
 
-from app.api.endpoints.user import get_current_admin, get_current_user
+from app.api.endpoints.user import get_current_admin
 from app.core.cache_constants import (
     ACHIEVEMENT_IMAGES_NAMESPACE,
     VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE,
@@ -18,7 +18,7 @@ from app.schemas.achievement import (
 )
 from app.schemas.karp_event import KarpEvent
 from app.schemas.s3 import PresignedUrlResponse
-from app.schemas.user import User, UserType
+from app.schemas.user import User
 from app.services.achievement import achievement_service
 from app.services.s3 import s3_service
 from app.utils.cache_key_builders import (
@@ -51,7 +51,7 @@ async def get_achievements(
 @router.get("/volunteer/{volunteer_id}", response_model=list[VolunteerReceivedAchievementResponse])
 @cache(
     namespace=VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE,
-    expire=3600,
+    expire=60 * 60 * 24,  # cache for 24 hours
     key_builder=volunteer_received_achievements_key_builder,
 )
 async def get_achievements_by_volunteer(
@@ -86,8 +86,6 @@ async def update_achievement(
     achievement_id: str,
     current_user: Annotated[User, Depends(get_current_admin)],
 ):
-    if current_user.user_type not in [UserType.ADMIN]:
-        return {"message": "Only users with the admin role can update an achievement"}
     await achievement_service.update_achievement(updated_achievement, achievement_id)
     return {"message": "Achievement updated successfully"}
 
@@ -96,8 +94,6 @@ async def update_achievement(
 async def delete_achievement(
     achievement_id: str, current_user: Annotated[User, Depends(get_current_admin)]
 ) -> None:
-    if current_user.user_type not in [UserType.ADMIN]:
-        return {"message": "Only users with the admin role can delete an achievement"}
     await achievement_service.delete_achievement(achievement_id)
 
 
@@ -107,14 +103,8 @@ async def get_achievement_upload_url(
     achievement_id: str,
     filename: Annotated[str, Query()],
     filetype: Annotated[str, Query()],
-    current_user: Annotated[User, Depends(get_current_user)],
+    current_user: Annotated[User, Depends(get_current_admin)],
 ):
-    if current_user.user_type not in [UserType.ADMIN]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only users with admin role can upload an achievement image",
-        )
-
     # Verify achievement exists
     achievement = await achievement_model.get_achievement(achievement_id)
     if not achievement:
@@ -138,7 +128,7 @@ async def get_achievement_upload_url(
 @router.get("/{achievement_id}/image")
 @cache(
     namespace=ACHIEVEMENT_IMAGES_NAMESPACE,
-    expire=60,
+    expire=60 * 60,  # cache for 1 hour to match S3 expiration
     key_builder=achievement_images_key_builder,
 )
 async def get_achievement_image(achievement_id: str):

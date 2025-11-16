@@ -63,11 +63,8 @@ class AchievementService:
         await self.invalidate_volunteer_received_achievements_caches_by_achievement_id(
             achievement_id
         )
-
         await self.achievement_model.delete_achievement(achievement_id)
-        await volunteer_achievements_service.delete_all_volunteer_achievements_by_achievement_id(
-            achievement_id
-        )
+        await volunteer_achievements_service._delete_all_by_achievement_id_internal(achievement_id)
         await cache_service.delete(ACHIEVEMENT_IMAGES_NAMESPACE, achievement_id)
 
     async def invalidate_volunteer_received_achievements_caches_by_achievement_id(
