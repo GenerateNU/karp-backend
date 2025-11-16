@@ -58,7 +58,7 @@ class ItemModel:
         if status:
             query["status"] = status
         else:
-            query["status"] = {"$ne": ItemStatus.APPROVED}
+            query["status"] = {"$eq": ItemStatus.APPROVED}
 
         if search_text:
             query["name"] = {
