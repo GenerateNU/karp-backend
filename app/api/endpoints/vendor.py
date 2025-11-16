@@ -48,6 +48,11 @@ async def approve_vendor(vendor_id: str, current_user: Annotated[User, Depends(g
     return await vendor_model.approve_vendor(vendor_id)
 
 
+@router.get("/{vendor_id}", response_model=Vendor)
+async def get_vendor_by_id(vendor_id: str) -> Vendor:
+    return await vendor_model.get_vendor_by_id(vendor_id)
+
+
 @router.delete("/clear", response_model=None)
 async def clear_vendors():
     return await vendor_model.delete_all_vendors()
