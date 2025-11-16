@@ -6,6 +6,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.event import event_model
 from app.models.organization import org_model
+from app.models.registration import registration_model
 from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventStatusRequest
 from app.schemas.s3 import PresignedUrlResponse
 from app.schemas.user import User, UserType
@@ -90,14 +91,14 @@ async def get_events(
         str | None,
         Query(
             description="Start time for availability (HH:MM format, 24-hour)",
-            pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+            pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
         ),
     ] = None,
     availability_end_time: Annotated[
         str | None,
         Query(
             description="End time for availability (HH:MM format, 24-hour)",
-            pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$"
+            pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
         ),
     ] = None,
     # Location filter
@@ -294,7 +295,7 @@ async def update_event(
     old_event = await event_model.get_event_by_id(event_id)
     old_status = old_event.status if old_event else None
 
-    updated_event = await event_model.update_status(event_id, event)
+    updated_event = await event_model.update_event(event_id, event)
 
     if updated_event and updated_event.id:
         new_status = updated_event.status
