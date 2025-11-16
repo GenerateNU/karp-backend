@@ -85,10 +85,14 @@ class VolunteerAchievementsService:
         )
 
     async def delete_volunteer_achievement(self, volunteer_achievement_id: str) -> None:
-        volunteer_id = await self.volunteer_achievement_model.get_volunteer_achievement_by_id(
-            volunteer_achievement_id
+        volunteer_achievement = (
+            await self.volunteer_achievement_model.get_volunteer_achievement_by_id(
+                volunteer_achievement_id
+            )
         )
-        await cache_service.delete(VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE, volunteer_id)
+        await cache_service.delete(
+            VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE, volunteer_achievement.volunteer_id
+        )
 
         return await self.volunteer_achievement_model.delete_volunteer_achievement(
             volunteer_achievement_id
