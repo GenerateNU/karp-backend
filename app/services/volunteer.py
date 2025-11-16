@@ -3,8 +3,10 @@ import traceback
 from app.core.cache_constants import VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE
 from app.models.volunteer import volunteer_model
 from app.schemas.event import Event
+from app.schemas.karp_event import KarpEvent
 from app.schemas.registration import Registration
 from app.schemas.volunteer import UpdateVolunteerRequest, Volunteer
+from app.services.achievement import achievement_service
 from app.services.cache import cache_service
 from app.services.volunteer_achievements import volunteer_achievements_service
 
@@ -40,12 +42,27 @@ class VolunteerService:
                 break
 
         if new_level != volunteer.current_level:
+            old_level = volunteer.current_level
             update_volunteer_req = UpdateVolunteerRequest(current_level=new_level)
             await self.volunteer_model.update_volunteer(volunteer.id, update_volunteer_req)
-            await self.volunteer_achievements_service.add_level_up_achievement(
-                volunteer.id, new_level
+
+            # grant achievements for (old_level + 1) to new_level inclusive
+            await self.check_and_grant_achievement(
+                volunteer.id, KarpEvent.USER_LEVEL_UP, old_level + 1, new_level
             )
-        await cache_service.delete(VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE, volunteer.id)
+
+    async def check_and_grant_achievement(
+        self, volunteer_id: str, event_type: KarpEvent, threshold_min: int, threshold_max: int
+    ):
+        achievements = await achievement_service.get_achievements_by_threshold(
+            event_type, threshold_min, threshold_max
+        )
+        for achievement in achievements:
+            await volunteer_achievements_service._add_achievement_to_volunteer_internal(
+                volunteer_id, achievement.id
+            )
+        if achievements:
+            await cache_service.delete(VOLUNTEER_RECEIVED_ACHIEVEMENTS_NAMESPACE, volunteer_id)
 
     def create_level_to_xp_dict(self):
         level_dict = {}

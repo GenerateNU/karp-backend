@@ -42,28 +42,27 @@ class VolunteerAchievementsService:
             achievement_id
         )
 
-    async def delete_all_volunteer_achievements_by_achievement_id(self, achievement_id: str):
+    # Internal method to delete all volunteer achievements by achievement ID, no cache invalidation
+    async def _delete_all_by_achievement_id_internal(self, achievement_id: str):
         return (
             await self.volunteer_achievement_model.delete_all_volunteer_achievements_by_achievement(
                 achievement_id
             )
         )
 
-    async def add_achievement_to_volunteer(self, volunteer_id: str, achievement_id: str):
+    # Internal method to add an achievement to a volunteer, no cache invalidation
+    async def _add_achievement_to_volunteer_internal(self, volunteer_id: str, achievement_id: str):
         existing_achievements = (
             await self.volunteer_achievement_model.get_volunteer_achievements_by_volunteer(
                 volunteer_id
             )
         )
-
         if achievement_id in [achievement.achievement_id for achievement in existing_achievements]:
             return
-
-        volunteer_achievement_request = CreateVolunteerAchievementRequest(
-            volunteer_id=volunteer_id, achievement_id=achievement_id
-        )
         return await self.volunteer_achievement_model.create_volunteer_achievement(
-            volunteer_achievement_request
+            CreateVolunteerAchievementRequest(
+                volunteer_id=volunteer_id, achievement_id=achievement_id
+            )
         )
 
     async def get_volunteer_received_achievements_by_volunteer(
