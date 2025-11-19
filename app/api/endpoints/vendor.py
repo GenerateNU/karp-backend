@@ -3,8 +3,10 @@ from typing import Annotated
 from fastapi import APIRouter, Body, Depends, HTTPException, status
 
 from app.api.endpoints.user import get_current_admin, get_current_user
+from app.models.user import user_model
 from app.models.vendor import CreateVendorRequest, Vendor, vendor_model
 from app.schemas.user import User, UserType
+from app.schemas.vendor import UpdateVendorRequest, VendorStatus
 
 router = APIRouter()
 
@@ -37,8 +39,8 @@ async def create_vendor(
 
 
 @router.get("/all", response_model=list[Vendor])
-async def get_vendors():
-    return await vendor_model.get_all_vendors()
+async def get_vendors(status: Annotated[VendorStatus | None, None] = None):
+    return await vendor_model.get_all_vendors(status)
 
 
 @router.get("/approve/{vendor_id}", response_model=None)
@@ -46,6 +48,32 @@ async def approve_vendor(vendor_id: str, current_user: Annotated[User, Depends(g
     return await vendor_model.approve_vendor(vendor_id)
 
 
+@router.get("/{vendor_id}", response_model=Vendor)
+async def get_vendor_by_id(vendor_id: str) -> Vendor:
+    return await vendor_model.get_vendor_by_id(vendor_id)
+
+
 @router.delete("/clear", response_model=None)
 async def clear_vendors():
     return await vendor_model.delete_all_vendors()
+
+
+@router.put("/{vendor_id}", response_model=Vendor)
+async def update_vendor(
+    vendor_id: str,
+    vendor: Annotated[UpdateVendorRequest, Body(...)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> Vendor:
+    if current_user.user_type != UserType.ADMIN:
+        if current_user.entity_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You are not associated with any vendor",
+            )
+        if not await user_model.owns_entity(current_user.id, vendor_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to update this vendor",
+            )
+
+    return await vendor_model.update_vendor(vendor_id, vendor)

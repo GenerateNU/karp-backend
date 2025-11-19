@@ -6,13 +6,14 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.event import event_model
 from app.models.organization import org_model
-from app.schemas.event import CreateEventRequest, Event, UpdateEventStatusRequest
+from app.models.registration import registration_model
+from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventStatusRequest
 from app.schemas.s3 import PresignedUrlResponse
-from app.schemas.status import Status
 from app.schemas.user import User, UserType
 from app.services.event import event_service
 from app.services.geocoding import geocoding_service
 from app.services.s3 import s3_service
+from app.services.similarity_computation import similarity_computation_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -21,8 +22,137 @@ router = APIRouter()
 
 
 @router.get("/all", response_model=list[Event])
-async def get_events() -> list[Event]:
-    return await event_model.get_all_events()
+async def get_events(
+    # Sort filters
+    sort_by: Annotated[
+        Literal["been_before", "new_additions", "coins_low_to_high", "coins_high_to_low"],
+        Query(description="Sort order for events"),
+    ] = None,
+    # Cause filters (pick up to 5)
+    causes: Annotated[
+        list[
+            Literal[
+                "Animals",
+                "Arts & Culture",
+                "Climate Change",
+                "Community",
+                "Disability",
+                "Disaster Relief",
+                "Education",
+                "Food Security",
+                "Health & Medicine",
+                "Human Rights",
+                "Mental Health",
+                "Poverty",
+                "Research",
+                "Seniors & Retirement",
+            ]
+        ]
+        | None,
+        Query(description="Filter by causes (max 5)", max_length=5),
+    ] = None,
+    # Qualification filters
+    qualifications: Annotated[
+        list[
+            Literal[
+                "Club Leader/Member",
+                "Camp Counselor",
+                "Event Volunteer/Organizer",
+                "Environment Project",
+                "First Aid Certified",
+                "Food Safety Certified",
+                "Google/Microsoft Tools",
+                "Graphic Design",
+                "Lifeguard Certified",
+                "STEM or Robotics",
+                "Student Council",
+            ]
+        ]
+        | None,
+        Query(description="Filter by required qualifications"),
+    ] = None,
+    # Availability filters (days and times)
+    availability_days: Annotated[
+        list[
+            Literal[
+                "Sunday",
+                "Monday",
+                "Tuesday",
+                "Wednesday",
+                "Thursday",
+                "Friday",
+                "Saturday",
+            ]
+        ]
+        | None,
+        Query(description="Filter by available days"),
+    ] = None,
+    availability_start_time: Annotated[
+        str | None,
+        Query(
+            description="Start time for availability (HH:MM format, 24-hour)",
+            pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+        ),
+    ] = None,
+    availability_end_time: Annotated[
+        str | None,
+        Query(
+            description="End time for availability (HH:MM format, 24-hour)",
+            pattern=r"^([01]?[0-9]|2[0-3]):[0-5][0-9]$",
+        ),
+    ] = None,
+    # Location filter
+    location_city: Annotated[str | None, Query(description="City name for location filter")] = None,
+    location_state: Annotated[
+        str | None, Query(description="State abbreviation for location filter")
+    ] = None,
+    location_radius_km: Annotated[
+        float | None, Query(ge=0, le=200, description="Radius in kilometers")
+    ] = None,
+    lat: Annotated[float | None, Query(ge=-90, le=90, description="Latitude")] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180, description="Longitude")] = None,
+    # Volunteer ID for "been before" filter
+    volunteer_id: Annotated[
+        str | None, Query(description="Volunteer ID for 'been before' filter")
+    ] = None,
+) -> list[Event]:
+    # If city/state provided but no lat/lng, geocode the location
+    if (location_city or location_state) and not (lat and lng):
+        if location_city and location_state:
+            address = f"{location_city}, {location_state}"
+        elif location_city:
+            address = location_city
+        else:
+            address = location_state
+        try:
+            location = await geocoding_service.location_to_coordinates(address)
+            lat = location.coordinates[1]
+            lng = location.coordinates[0]
+        except HTTPException as e:
+            # If geocoding fails, inform the user by re-raising the exception
+            raise e
+
+    # If geocoding succeeded and radius is missing, set a sensible default (e.g., 25 km)
+    if (lat is not None and lng is not None) and location_radius_km is None:
+        location_radius_km = 25
+    # Get volunteer events if needed for "been before" filter
+    volunteer_event_ids: set[str] | None = None
+    if sort_by == "been_before" and volunteer_id:
+        volunteer_events = await registration_model.get_events_by_volunteer(volunteer_id, None)
+        volunteer_event_ids = {event.id for event in volunteer_events}
+
+    return await event_model.get_all_events(
+        sort_by=sort_by,
+        causes=causes,
+        qualifications=qualifications,
+        availability_days=availability_days,
+        availability_start_time=availability_start_time,
+        availability_end_time=availability_end_time,
+        location_radius_km=location_radius_km,
+        lat=lat,
+        lng=lng,
+        volunteer_event_ids=volunteer_event_ids,
+    )
 
 
 @router.get("/organization/{organization_id}", response_model=list[Event])
@@ -35,10 +165,12 @@ async def get_events_by_org(organization_id: str) -> list[Event]:
 async def search_events(
     q: Annotated[str | None, Query(description="Search term (name, description, keywords)")] = None,
     sort_by: Annotated[
-        Literal["start_date_time", "name", "coins", "max_volunteers"], Query()
+        Literal["start_date_time", "name", "coins", "max_volunteers", "created_at"], Query()
     ] = "start_date_time",
     sort_dir: Annotated[Literal["asc", "desc"], Query()] = "asc",
-    statuses: Annotated[list[Status] | None, Query(description="Allowed event statuses")] = None,
+    statuses: Annotated[
+        list[EventStatus] | None, Query(description="Allowed event statuses")
+    ] = None,
     organization_id: Annotated[str | None, Query()] = None,
     age: Annotated[
         int | None, Query(ge=0, description="User age for eligibility filtering")
@@ -83,7 +215,7 @@ async def create_event(
                 detail="You must be associated with an organization to create an event",
             )
         organization = await org_model.get_organization_by_id(current_user.entity_id)
-        if organization.status != Status.APPROVED:
+        if organization.status != EventStatus.APPROVED:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Your organization is not approved to create events",
@@ -96,7 +228,31 @@ async def create_event(
         )
 
     coordinates = await geocoding_service.location_to_coordinates(event.address)
-    return await event_model.create_event(event, current_user.id, coordinates)
+
+    ai_difficulty_coefficient = await event_service.estimate_event_difficulty(
+        event.description or ""
+    )
+
+    created_event = await event_model.create_event(
+        event,
+        current_user.id,
+        current_user.entity_id,
+        coordinates,
+        ai_difficulty_coefficient=ai_difficulty_coefficient,
+    )
+
+    if created_event.status == EventStatus.PUBLISHED and created_event.id:
+        try:
+            import asyncio
+
+            asyncio.create_task(
+                similarity_computation_service.compute_similarities_for_event(created_event.id)
+            )
+            logger.info(f"Triggered similarity computation for new event {created_event.id}")
+        except Exception as e:
+            logger.error(f"Failed to trigger similarity computation: {e}")
+
+    return created_event
 
 
 @router.delete("/clear", response_model=None)
@@ -116,12 +272,11 @@ async def get_event_by_id(event_id: str) -> Event:
 
 
 @router.put("/{event_id}", response_model=Event | None)
-async def update_event_status(
+async def update_event(
     event_id: str,
     event: Annotated[UpdateEventStatusRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> Event | None:
-
     if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -136,7 +291,31 @@ async def update_event_status(
     # Admins can bypass org authorization
     if current_user.user_type != UserType.ADMIN:
         await event_service.authorize_org(event_id, current_user.entity_id)
-    updated_event = await event_model.update_event_status(event_id, event)
+
+    old_event = await event_model.get_event_by_id(event_id)
+    old_status = old_event.status if old_event else None
+
+    updated_event = await event_model.update_event(event_id, event)
+
+    if updated_event and updated_event.id:
+        new_status = updated_event.status
+        should_recompute = (
+            old_status != EventStatus.PUBLISHED and new_status == EventStatus.PUBLISHED
+        ) or (new_status == EventStatus.PUBLISHED and event.tags is not None)
+
+        if should_recompute:
+            try:
+                import asyncio
+
+                asyncio.create_task(
+                    similarity_computation_service.compute_similarities_for_event(updated_event.id)
+                )
+                logger.info(
+                    f"Triggered similarity computation for updated event {updated_event.id}"
+                )
+            except Exception as e:
+                logger.error(f"Failed to trigger similarity computation: {e}")
+
     return updated_event
 
 
@@ -169,7 +348,6 @@ async def get_event_upload_url(
     filetype: str,
     current_user: Annotated[User, Depends(get_current_user)],
 ):
-
     if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -209,3 +387,23 @@ async def get_event_image(event_id: str):
         event.image_s3_key, content_type=f"image/{file_type}"
     )
     return {"url": presigned_url}
+
+
+@router.get("/{event_id}/generate-qr-code")
+async def get_event_qr_codes(
+    event_id: str, current_user: Annotated[User, Depends(get_current_user)]
+):
+    event = await event_model.get_event_by_id(event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only users with organization role can get an event qr code",
+        )
+
+    if current_user.user_type != UserType.ADMIN:
+        await event_service.authorize_org(event_id, current_user.entity_id)
+
+    return await event_service.get_event_qr_codes(event)

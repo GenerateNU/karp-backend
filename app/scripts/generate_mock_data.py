@@ -100,7 +100,7 @@ for _ in range(10):
             "name": fake.company(),
             "description": fake.text(),
             "status": random.choice(
-                ["APPROVED", "IN_REVIEW", "REJECTED", "DELETED"]
+                ["APPROVED", "PENDING", "REJECTED", "DELETED"]
             ),  # NEW: have a status enum with approved, in review, rejected, deleted
         }
     )

@@ -24,6 +24,12 @@ class RegistrationModel:
             RegistrationModel._instance = cls()
         return RegistrationModel._instance
 
+    async def create_indexes(self) -> None:
+        try:
+            await self.registrations.create_index([("volunteer_id", 1), ("registration_status", 1)])
+        except Exception:
+            pass
+
     async def get_volunteers_by_event(self, event_id: str) -> list[Registration]:
         event = await event_model.get_event_by_id(event_id)
         if not event:
@@ -130,7 +136,12 @@ class RegistrationModel:
     async def check_out_registration(self, volunteer_id: str, event_id: str) -> Registration:
         await self.registrations.update_one(
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)},
-            {"$set": {"clocked_out": datetime.now()}},
+            {
+                "$set": {
+                    "clocked_out": datetime.now(),
+                    "registration_status": RegistrationStatus.COMPLETED,
+                }
+            },
         )
         updated_doc = await self.registrations.find_one(
             {"volunteer_id": ObjectId(volunteer_id), "event_id": ObjectId(event_id)}
