@@ -1,3 +1,4 @@
+import datetime
 import logging
 from typing import Annotated, Literal
 
@@ -401,6 +402,13 @@ async def get_event_qr_codes(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only users with organization role can get an event qr code",
+        )
+
+    current_time = datetime.datetime.now()
+    if current_time > event.end_date_time:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can't create a qr code for an event that has already completed",
         )
 
     if current_user.user_type != UserType.ADMIN:
