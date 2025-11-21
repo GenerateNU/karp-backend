@@ -4,6 +4,7 @@ aiohttp==3.13.2
 aiosignal==1.4.0
 annotated-types==0.7.0
 anyio==4.8.0
+APScheduler==3.11.1
 attrs==25.4.0
 bcrypt==4.2.1
 black==25.1.0
@@ -64,6 +65,7 @@ pyasn1==0.6.1
 pydantic==2.10.6
 pydantic-settings==2.7.1
 pydantic_core==2.27.2
+PyDispatcher==2.0.7
 pydot==3.0.4
 pymongo==4.11
 pyparsing==3.2.1
@@ -92,6 +94,7 @@ tqdm==4.67.1
 traits==7.0.2
 typing_extensions==4.12.2
 tzdata==2025.1
+tzlocal==5.3.1
 urllib3==2.3.0
 uvicorn==0.34.0
 virtualenv==20.34.0

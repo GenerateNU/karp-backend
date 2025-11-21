@@ -7,9 +7,15 @@ from datetime import timedelta
 import qrcode
 from fastapi import HTTPException, status
 
+from app.jobs.event import (
+    cancel_event_notifications,
+    schedule_event_notifications,
+    update_event_notifications,
+)
 from app.models.event import event_model
-from app.schemas.event import Event, UpdateEventStatusRequest
+from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventStatusRequest
 from app.schemas.location import Location
+from app.schemas.volunteer import Volunteer
 from app.services.ai import ai_service
 
 
@@ -26,6 +32,48 @@ class EventService:
         if EventService._instance is None:
             EventService._instance = cls()
         return EventService._instance
+
+    async def get_registered_volunteers_for_event(self, event_id: str) -> list[Volunteer]:
+        event = await self.event_model.get_event_by_id(event_id)
+        if not event:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Event not found",
+            )
+        return await self.event_model.get_registered_volunteers_for_event(event_id)
+
+    async def create_event(
+        self,
+        event: CreateEventRequest,
+        user_id: str,
+        organization_id: str,
+        location: Location,
+        ai_difficulty_coefficient: float,
+    ) -> Event:
+        try:
+            created_event = await self.event_model.create_event(
+                event, user_id, organization_id, location, ai_difficulty_coefficient
+            )
+            return created_event
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create event: {e}",
+            ) from e
+
+    async def update_event(self, event_id: str, event: UpdateEventStatusRequest) -> Event:
+        updated_event = await self.event_model.update_event(event_id, event)
+
+        # Create notifications when event is approved
+        if updated_event.status == EventStatus.APPROVED:
+            await schedule_event_notifications(updated_event)
+        # Cancel notifications if event is updated to any other statuses
+        elif updated_event.status:
+            await cancel_event_notifications(updated_event)
+
+        if updated_event.start_date_time:
+            await update_event_notifications(updated_event)
+        return updated_event
 
     # ensure that only the org who created the event can modify it
     async def authorize_org(self, event_id: str, org_id: str) -> Event | None:

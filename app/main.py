@@ -10,6 +10,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.api.endpoints import (
     achievement,
     admin,
+    device_token,
     event,
     health,
     item,
@@ -28,6 +29,7 @@ from app.models.event_similarity import EventSimilarityModel
 from app.models.organization import OrganizationModel
 from app.models.registration import RegistrationModel
 from app.models.volunteer import VolunteerModel
+from app.services.scheduler import scheduler_service
 
 
 @asynccontextmanager
@@ -51,7 +53,12 @@ async def lifespan(app: FastAPI):
     FastAPICache.init(
         redis_backend,
     )
+
+    # Initialize and start scheduler
+    scheduler_service.start()
     yield
+    # Shutdown scheduler
+    scheduler_service.shutdown()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -88,6 +95,8 @@ app.include_router(health.router, prefix="", tags=["health"])
 app.include_router(user.router, prefix="/user", tags=["user"])
 
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
+
+app.include_router(device_token.router, prefix="/device-token", tags=["device-token"])
 
 app.include_router(item.router, prefix="/item", tags=["item"])
 

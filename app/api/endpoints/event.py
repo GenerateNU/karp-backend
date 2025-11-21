@@ -233,7 +233,7 @@ async def create_event(
         event.description or ""
     )
 
-    created_event = await event_model.create_event(
+    created_event = await event_service.create_event(
         event,
         current_user.id,
         current_user.entity_id,
@@ -295,7 +295,7 @@ async def update_event(
     old_event = await event_model.get_event_by_id(event_id)
     old_status = old_event.status if old_event else None
 
-    updated_event = await event_model.update_event(event_id, event)
+    updated_event = await event_service.update_event(event_id, event)
 
     if updated_event and updated_event.id:
         new_status = updated_event.status
