@@ -1,10 +1,11 @@
+import hashlib
 import logging
 import re
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from bson import ObjectId
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, status
 from fastapi.security import (
     HTTPAuthorizationCredentials,
     HTTPBearer,
@@ -14,6 +15,7 @@ from fastapi.security import (
 from jose import JWTError, jwt
 
 from app.models.user import user_model
+from app.schemas.device_token import UnregisterDeviceTokenRequest
 from app.schemas.user import (
     CreateUserRequest,
     LoginRequest,
@@ -21,8 +23,10 @@ from app.schemas.user import (
     User,
     UserRedirectResponse,
     UserResponse,
-    UserType
+    UserType,
 )
+from app.services.cache import cache_service
+from app.services.device_token import device_token_service
 from app.utils.user import create_access_token, hash_password, settings, verify_password
 
 router = APIRouter()
@@ -92,6 +96,16 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # check if token is blacklisted
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    is_blacklisted = await cache_service.get("blacklist:token", token_hash)
+    if is_blacklisted:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token is blacklisted",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -284,6 +298,47 @@ async def reset_password(
         ) from None
 
     return {"detail": "Password updated successfully"}
+
+
+@router.post("/logout", response_model=dict)
+async def logout(
+    request: Request,
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    # Extract token from request
+    token = None
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split("Bearer ")[1]
+
+    if token:
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+            exp_timestamp = payload.get("exp")
+
+            if exp_timestamp:
+                exp_datetime = datetime.fromtimestamp(exp_timestamp, tz=UTC)
+                now = datetime.now(UTC)
+                remaining_seconds = int((exp_datetime - now).total_seconds())
+
+                if remaining_seconds > 0:
+                    token_hash = hashlib.sha256(token.encode()).hexdigest()
+                    await cache_service.set(
+                        "blacklist:token",
+                        token_hash,
+                        {
+                            "blacklisted_at": datetime.now(UTC).isoformat(),
+                            "user_id": current_user.id,
+                        },
+                        expire=remaining_seconds,
+                    )
+        except (JWTError, ValueError) as e:
+            logger.warning(f"Could not blacklist token: {e}")
+
+    await device_token_service.unregister_user_token(
+        UnregisterDeviceTokenRequest(volunteer_id=current_user.id)
+    )
+    return {"detail": "Successfully logged out"}
 
 
 @router.get("/me", response_model=UserRedirectResponse)

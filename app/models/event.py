@@ -1,12 +1,15 @@
-from datetime import UTC, datetime, time
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Literal
 
 from bson import ObjectId
 from fastapi import HTTPException
 
 from app.database.mongodb import db
+from app.models.volunteer import volunteer_model
 from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventStatusRequest
 from app.schemas.location import Location
+from app.schemas.registration import RegistrationStatus
+from app.schemas.volunteer import Volunteer
 
 if TYPE_CHECKING:
     from motor.motor_asyncio import AsyncIOMotorCollection
@@ -92,7 +95,7 @@ class EventModel:
         volunteer_event_ids: set[str] | None = None,
     ) -> list[Event]:
         # Start with base filter for published events
-        filters: dict = {"status": Status.PUBLISHED}
+        filters: dict = {"status": EventStatus.PUBLISHED}
 
         # Filter by causes and/or qualifications (using keywords field)
         keyword_filters = []
@@ -171,12 +174,9 @@ class EventModel:
             # Build $expr for day-of-week and time overlap
             expr_conditions = []
             if mongo_weekdays:
-                expr_conditions.append({
-                    "$in": [
-                        { "$dayOfWeek": "$start_date_time" },
-                        mongo_weekdays
-                    ]
-                })
+                expr_conditions.append(
+                    {"$in": [{"$dayOfWeek": "$start_date_time"}, mongo_weekdays]}
+                )
 
             # Parse time strings if provided
             if availability_start_time and availability_end_time:
@@ -187,45 +187,52 @@ class EventModel:
                     start_hour = start_minute = end_hour = end_minute = None
 
                 if None not in (start_hour, start_minute, end_hour, end_minute):
-                    # Event overlaps if: event starts before availability ends AND event ends after availability starts
-                    expr_conditions.append({
-                        "$and": [
-                            {
-                                "$or": [
-                                    { "$lt": [
-                                        { "$hour": "$start_date_time" },
-                                        end_hour
-                                    ]},
-                                    {
-                                        "$and": [
-                                            { "$eq": [ { "$hour": "$start_date_time" }, end_hour ] },
-                                            { "$lte": [ { "$minute": "$start_date_time" }, end_minute ] }
-                                        ]
-                                    }
-                                ]
-                            },
-                            {
-                                "$or": [
-                                    { "$gt": [
-                                        { "$hour": "$end_date_time" },
-                                        start_hour
-                                    ]},
-                                    {
-                                        "$and": [
-                                            { "$eq": [ { "$hour": "$end_date_time" }, start_hour ] },
-                                            { "$gte": [ { "$minute": "$end_date_time" }, start_minute ] }
-                                        ]
-                                    }
-                                ]
-                            }
-                        ]
-                    })
+                    expr_conditions.append(
+                        {
+                            "$and": [
+                                {
+                                    "$or": [
+                                        {"$lt": [{"$hour": "$start_date_time"}, end_hour]},
+                                        {
+                                            "$and": [
+                                                {"$eq": [{"$hour": "$start_date_time"}, end_hour]},
+                                                {
+                                                    "$lte": [
+                                                        {"$minute": "$start_date_time"},
+                                                        end_minute,
+                                                    ]
+                                                },
+                                            ]
+                                        },
+                                    ]
+                                },
+                                {
+                                    "$or": [
+                                        {"$gt": [{"$hour": "$end_date_time"}, start_hour]},
+                                        {
+                                            "$and": [
+                                                {"$eq": [{"$hour": "$end_date_time"}, start_hour]},
+                                                {
+                                                    "$gte": [
+                                                        {"$minute": "$end_date_time"},
+                                                        start_minute,
+                                                    ]
+                                                },
+                                            ]
+                                        },
+                                    ]
+                                },
+                            ]
+                        }
+                    )
 
             # Add $expr to the MongoDB query
             if expr_conditions:
                 if "query" not in locals():
                     query = {}
-                query["$expr"] = { "$and": expr_conditions } if len(expr_conditions) > 1 else expr_conditions[0]
+                query["$expr"] = (
+                    {"$and": expr_conditions} if len(expr_conditions) > 1 else expr_conditions[0]
+                )
 
         # Now fetch events from the database using the updated query
         # (Assume the rest of the code uses this query to fetch events)
@@ -251,7 +258,7 @@ class EventModel:
                 # If no volunteer_event_ids, can't sort by "been before"
                 raise HTTPException(
                     status_code=400,
-                    detail='volunteer_event_ids must be provided when sort_by="been_before".'
+                    detail='volunteer_event_ids must be provided when sort_by="been_before".',
                 )
 
         return events
@@ -282,12 +289,12 @@ class EventModel:
                 mode="json", by_alias=True, exclude_unset=True, exclude={"_id", "id"}
             )
             await self.collection.update_one({"_id": ObjectId(event_id)}, {"$set": updated_data})
-            event_data.update(updated_data)
+            updated_event = await self.collection.find_one({"_id": ObjectId(event_id)})
 
             # if event_data["status"] == Status.COMPLETED:
             #     await self.registration_service.update_not_checked_out_volunteers(event_id)
 
-            return Event(**event_data)
+            return Event(**updated_event)
         raise HTTPException(status_code=404, detail="No event with this ID was found")
 
     async def delete_event_by_id(self, event_id: str) -> None:
@@ -397,6 +404,47 @@ class EventModel:
             {"_id": ObjectId(event_id)}, {"$set": {"image_s3_key": s3_key}}
         )
         return s3_key
+
+    async def get_registered_volunteers_for_event(self, event_id: str) -> list[Volunteer]:
+        pipeline = [
+            {"$match": {"_id": ObjectId(event_id)}},
+            {
+                "$lookup": {
+                    "from": "registrations",
+                    "localField": "_id",
+                    "foreignField": "event_id",
+                    "as": "registrations",
+                }
+            },
+            {"$unwind": "$registrations"},
+            {
+                "$match": {
+                    "registrations.registration_status": RegistrationStatus.UPCOMING,
+                }
+            },
+            {
+                "$lookup": {
+                    "from": "volunteers",
+                    "localField": "registrations.volunteer_id",
+                    "foreignField": "_id",
+                    "as": "volunteer",
+                }
+            },
+            {"$unwind": "$volunteer"},
+            {"$replaceRoot": {"newRoot": "$volunteer"}},
+        ]
+
+        volunteer_docs = await self.collection.aggregate(pipeline).to_list(length=None)
+        return [volunteer_model._to_volunteer(doc) for doc in volunteer_docs]
+
+    async def get_events_within_next_timedelta(self, timedelta: timedelta) -> list[Event]:
+        now = datetime.now(UTC)
+        upper = now + timedelta
+
+        events = await self.collection.find(
+            {"start_date_time": {"$gte": now, "$lte": upper}}
+        ).to_list(length=None)
+        return [Event(**event) for event in events]
 
 
 event_model = EventModel.get_instance()
