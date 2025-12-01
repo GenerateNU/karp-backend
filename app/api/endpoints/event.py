@@ -1,5 +1,5 @@
-import datetime
 import logging
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -390,7 +390,7 @@ async def get_event_image(event_id: str):
     return {"url": presigned_url}
 
 
-@router.get("/{event_id}/generate-qr-code")
+@router.get("/{event_id}/generate-qr-codes")
 async def get_event_qr_codes(
     event_id: str, current_user: Annotated[User, Depends(get_current_user)]
 ):
@@ -399,16 +399,31 @@ async def get_event_qr_codes(
         raise HTTPException(status_code=404, detail="Event not found")
 
     if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
+        print("wth")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only users with organization role can get an event qr code",
         )
 
-    current_time = datetime.datetime.now()
+    if event.status != EventStatus.APPROVED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only generate QR codes for approved events",
+        )
+
+    if event.check_in_qr_token is not None and event.check_in_qr_token is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="QR codes have already been generated for this event",
+        )
+
+    # convert it to UTC format
+    current_time = datetime.now(UTC)
+
     if current_time > event.end_date_time:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can't create a qr code for an event that has already completed",
+            detail="You can't create a qr code for a completed event",
         )
 
     if current_user.user_type != UserType.ADMIN:
