@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, status
@@ -145,3 +146,41 @@ async def get_item_image(item_id: str):
         item.image_s3_key, content_type=f"image/{file_type}"
     )
     return {"url": presigned_url}
+
+
+@router.get("/{item_id}/generate-qr-code")
+async def get_item_qr_code(item_id: str, current_user: Annotated[User, Depends(get_current_user)]):
+    item = await item_model.get_item_by_id(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    if current_user.user_type not in [UserType.VENDOR, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only users with vendor role can get an item qr code",
+        )
+
+    if item.status != ItemStatus.ACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only generate QR codes for active items",
+        )
+
+    current_time = datetime.now()
+
+    if current_time >= item.expiration:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can't create a qr code for an expired item",
+        )
+
+    if item.qr_token is not None and item.qr_token is not None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="QR codes have already been generated for this item",
+        )
+
+    if current_user.user_type != UserType.ADMIN:
+        await item_service.authorize_vendor(item_id, current_user.entity_id)
+
+    return await item_service.get_item_qr_code(item)

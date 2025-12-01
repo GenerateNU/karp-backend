@@ -8,7 +8,7 @@ from app.api.endpoints.user import get_current_admin, get_current_user
 from app.models.event import event_model
 from app.models.organization import org_model
 from app.models.registration import registration_model
-from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventStatusRequest
+from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventRequest
 from app.schemas.s3 import PresignedUrlResponse
 from app.schemas.user import User, UserType
 from app.services.event import event_service
@@ -275,7 +275,7 @@ async def get_event_by_id(event_id: str) -> Event:
 @router.put("/{event_id}", response_model=Event | None)
 async def update_event(
     event_id: str,
-    event: Annotated[UpdateEventStatusRequest, Body(...)],
+    event: Annotated[UpdateEventRequest, Body(...)],
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> Event | None:
     if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:

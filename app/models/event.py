@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from app.database.mongodb import db
 from app.models.volunteer import volunteer_model
-from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventStatusRequest
+from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventRequest
 from app.schemas.location import Location
 from app.schemas.registration import RegistrationStatus
 from app.schemas.volunteer import Volunteer
@@ -282,7 +282,7 @@ class EventModel:
         )
         return [Event(**event) for event in events_list]
 
-    async def update_event(self, event_id: str, event: UpdateEventStatusRequest) -> Event | None:
+    async def update_event(self, event_id: str, event: UpdateEventRequest) -> Event | None:
         event_data = await self.collection.find_one({"_id": ObjectId(event_id)})
         if event_data:
             updated_data = event.model_dump(
