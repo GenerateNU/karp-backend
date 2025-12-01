@@ -22,9 +22,11 @@ class Item(BaseModel):
     time_posted: datetime = datetime.now()
     expiration: datetime
     price: int
-    tags: list[str] = []
+    keywords: list[str] = []
     description: str | None = None
     image_s3_key: str | None = None
+    qr_code_image: str | None = None
+    qr_token: str | None = None
 
     @field_validator("id", "vendor_id", mode="before")
     @classmethod
@@ -58,7 +60,7 @@ class CreateItemRequest(BaseModel):
     name: str
     expiration: datetime
     description: str | None = None
-    tags: list[str] = []
+    keywords: list[str] = []
     image_s3_key: str | None = None
     dollar_price: float
     status: ItemStatus = ItemStatus.PUBLISHED
@@ -68,4 +70,8 @@ class UpdateItemRequest(BaseModel):
     name: str | None = None
     dollar_price: float | None = None
     expiration: datetime | None = None
+    description: str | None = None
+    keywords: list[str] = []
     status: ItemStatus | None = None
+    qr_code_image: str | None = None
+    qr_token: str | None = None

@@ -16,7 +16,7 @@ from app.schemas.admin import (
     UpdateOrganizationRequest,
     UpdateVendorRequest,
 )
-from app.schemas.event import EventStatus, UpdateEventStatusRequest
+from app.schemas.event import EventStatus
 from app.schemas.organization import OrganizationStatus
 from app.schemas.user import User, UserType
 from app.schemas.vendor import VendorStatus
@@ -111,5 +111,5 @@ async def change_event_status(
     current_user: Annotated[User, Depends(get_current_admin)],
 ) -> None:
 
-    update_data = UpdateEventStatusRequest(status=EventStatus(approval_data.status))
+    update_data = UpdateEventRequest(status=EventStatus(approval_data.status))
     await event_model.update_event(approval_data.event_id, update_data)

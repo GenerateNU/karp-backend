@@ -13,7 +13,7 @@ from app.jobs.event import (
     update_event_notifications,
 )
 from app.models.event import event_model
-from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventStatusRequest
+from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEventRequest
 from app.schemas.location import Location
 from app.schemas.volunteer import Volunteer
 from app.services.ai import ai_service
@@ -61,7 +61,7 @@ class EventService:
                 detail=f"Failed to create event: {e}",
             ) from e
 
-    async def update_event(self, event_id: str, event: UpdateEventStatusRequest) -> Event:
+    async def update_event(self, event_id: str, event: UpdateEventRequest) -> Event:
         updated_event = await self.event_model.update_event(event_id, event)
 
         # Create notifications when event is approved
@@ -139,7 +139,7 @@ class EventService:
             check_in_buf.getvalue()
         ).decode()  # qr code image for frontend
 
-        update_event_req = UpdateEventStatusRequest(
+        update_event_req = UpdateEventRequest(
             check_in_qr_code_image=check_in_qr_code,
             check_in_qr_token=check_in_qr_token,
             check_out_qr_code_image=check_out_qr_code,

@@ -77,7 +77,7 @@ class CreateEventRequest(BaseModel):
     status: EventStatus = EventStatus.PUBLISHED
 
 
-class UpdateEventStatusRequest(BaseModel):
+class UpdateEventRequest(BaseModel):
     status: EventStatus | None = None
     name: str | None = None
     location: str | None = None
