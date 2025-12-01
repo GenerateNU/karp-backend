@@ -399,7 +399,6 @@ async def get_event_qr_codes(
         raise HTTPException(status_code=404, detail="Event not found")
 
     if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
-        print("wth")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only users with organization role can get an event qr code",
