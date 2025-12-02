@@ -422,7 +422,7 @@ async def get_event_qr_codes(
     if current_time > event.end_date_time:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can't create a qr code for a completed event",
+            detail="You can't create a QR code for a completed event",
         )
 
     if current_user.user_type != UserType.ADMIN:
