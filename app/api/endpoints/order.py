@@ -109,7 +109,7 @@ async def cancel_order(
     return await order_model.cancel_order(order_id)
 
 
-@router.get("/{order_id}/scan", response_model=Order)
+@router.put("/{order_id}/scan", response_model=Order)
 async def scan_item(order_id: str, qr_token: str, item_id: str, current_user: Annotated[User, Depends(get_current_user)]) -> Order:
     
     if current_user.user_type != UserType.VOLUNTEER:
