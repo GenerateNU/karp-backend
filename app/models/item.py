@@ -7,6 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 from app.core.enums import SortOrder
 from app.database.mongodb import db
 from app.schemas.item import CreateItemRequest, Item, ItemSortParam, ItemStatus, UpdateItemRequest
+from app.schemas.location import Location
 from app.utils.object_id import parse_object_id
 
 
@@ -23,6 +24,12 @@ class ItemModel:
         if ItemModel._instance is None:
             ItemModel._instance = cls()
         return ItemModel._instance
+
+    async def create_indexes(self):
+        try:
+            await self.collection.create_index([("location", "2dsphere")])
+        except Exception:
+            pass
 
     async def create_item(self, item: CreateItemRequest, vendor_id: str) -> Item:
         item_data = item.model_dump()
@@ -52,6 +59,9 @@ class ItemModel:
         vendor_id: str | None = None,
         sort_by: ItemSortParam | None = None,
         sort_order: SortOrder = SortOrder.ASC,
+        lat: float | None = None,
+        lng: float | None = None,
+        distance_km: float | None = None,
     ) -> list[Item]:
         query = {}
 
@@ -68,6 +78,14 @@ class ItemModel:
 
         if vendor_id:
             query["vendor_id"] = ObjectId(vendor_id)
+
+        # Apply geo filter if provided
+        if lat is not None and lng is not None and distance_km is not None:
+            location = Location(type="Point", coordinates=[lng, lat])
+            max_distance_meters = int(distance_km * 1000)
+            query["location"] = {
+                "$near": {"$geometry": location.model_dump(), "$maxDistance": max_distance_meters}
+            }
 
         sort_criteria = []
         if sort_by:

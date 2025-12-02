@@ -4,6 +4,8 @@ from enum import Enum
 from bson import ObjectId
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 
+from app.schemas.location import Location
+
 
 class ItemStatus(str, Enum):
     PUBLISHED = "PUBLISHED"
@@ -24,6 +26,7 @@ class Item(BaseModel):
     price: int
     keywords: list[str] = []
     description: str | None = None
+    location: Location | None = None
     image_s3_key: str | None = None
     qr_code_image: str | None = None
     qr_token: str | None = None
@@ -61,6 +64,7 @@ class CreateItemRequest(BaseModel):
     expiration: datetime
     description: str | None = None
     keywords: list[str] = []
+    location: Location | None = None
     image_s3_key: str | None = None
     dollar_price: float
     status: ItemStatus = ItemStatus.PUBLISHED
@@ -72,6 +76,7 @@ class UpdateItemRequest(BaseModel):
     expiration: datetime | None = None
     description: str | None = None
     keywords: list[str] = []
+    location: Location | None = None
     status: ItemStatus | None = None
     qr_code_image: str | None = None
     qr_token: str | None = None
