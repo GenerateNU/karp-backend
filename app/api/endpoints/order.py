@@ -9,6 +9,8 @@ from app.models.volunteer import volunteer_model
 from app.schemas.order import CreateOrderRequest, Order, UpdateOrderRequest
 from app.schemas.user import User, UserType
 from app.services.order import order_service
+from app.schemas.order import OrderStatus
+from app.schemas.item import ItemStatus
 
 router = APIRouter()
 
@@ -107,8 +109,8 @@ async def cancel_order(
     return await order_model.cancel_order(order_id)
 
 
-@router.get("/{order_id}/scan")
-async def scan_item(order_id: str, qr_token: str, item_id: str, current_user: Annotated[User, Depends(get_current_user)]):
+@router.get("/{order_id}/scan", response_model=Order)
+async def scan_item(order_id: str, qr_token: str, item_id: str, current_user: Annotated[User, Depends(get_current_user)]) -> Order:
     
     if current_user.user_type != UserType.VOLUNTEER:
         raise HTTPException(
@@ -153,6 +155,6 @@ async def scan_item(order_id: str, qr_token: str, item_id: str, current_user: An
     if item.qr_token != qr_token:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="QR token does not match")
     
-    await order_model.update_order_status(order_id, OrderStatus.SCANNED)
+    return await order_model.update_order_status(order_id, UpdateOrderRequest(order_status=OrderStatus.SCANNED))
     
 
