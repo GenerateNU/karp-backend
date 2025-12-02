@@ -142,7 +142,7 @@ async def scan_item(order_id: str, qr_token: str, item_id: str, current_user: An
     order = await order_model.get_order_by_id(order_id)
     if not order:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
-    if order.status != OrderStatus.PENDING:
+    if order.order_status != OrderStatus.PENDING_PICKUP:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Order is not pending")
     if order.item_id != item_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Item ID does not match")
@@ -155,6 +155,6 @@ async def scan_item(order_id: str, qr_token: str, item_id: str, current_user: An
     if item.qr_token != qr_token:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="QR token does not match")
     
-    return await order_model.update_order_status(order_id, UpdateOrderRequest(order_status=OrderStatus.SCANNED))
+    return await order_model.update_order_status(order_id, UpdateOrderRequest(order_status=OrderStatus.COMPLETED))
     
 
