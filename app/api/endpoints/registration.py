@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -107,7 +107,7 @@ async def check_in_registration(
 
     check_in_start = event.start_date_time - timedelta(minutes=15)
     check_in_end = event.start_date_time + timedelta(minutes=30)
-    current_time = datetime.now()
+    current_time = datetime.now(UTC)
 
     if current_time < check_in_start or current_time > check_in_end:
         raise HTTPException(
@@ -157,7 +157,7 @@ async def check_out_registration(
 
     check_out_start = event.end_date_time - timedelta(minutes=15)
     check_out_end = event.end_date_time + timedelta(minutes=30)
-    current_time = datetime.now()
+    current_time = datetime.now(UTC)
 
     if current_time < check_out_start or current_time > check_out_end:
         raise HTTPException(
