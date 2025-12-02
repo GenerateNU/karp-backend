@@ -33,13 +33,7 @@ async def get_events_by_volunteer(
     if not volunteer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
 
-    if current_user.user_type == UserType.VOLUNTEER:
-        if current_user.entity_id != volunteer_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only view your own events",
-            )
-    elif current_user.user_type != UserType.ADMIN:
+    if current_user.user_type not in [UserType.VOLUNTEER, UserType.ADMIN]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     return await registration_model.get_events_by_volunteer(volunteer_id, registration_status)
