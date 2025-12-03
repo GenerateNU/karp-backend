@@ -166,7 +166,8 @@ async def get_events_by_org(organization_id: str) -> list[Event]:
 async def search_events(
     q: Annotated[str | None, Query(description="Search term (name, description, keywords)")] = None,
     sort_by: Annotated[
-        Literal["start_date_time", "name", "coins", "max_volunteers", "created_at"], Query()
+        Literal["start_date_time", "name", "coins", "max_volunteers", "created_at", "distance"],
+        Query(),
     ] = "start_date_time",
     sort_dir: Annotated[Literal["asc", "desc"], Query()] = "asc",
     statuses: Annotated[

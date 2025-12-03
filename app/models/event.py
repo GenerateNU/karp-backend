@@ -1,3 +1,4 @@
+import re
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Literal
 
@@ -326,7 +327,7 @@ class EventModel:
         self,
         q: str | None = None,
         sort_by: Literal[
-            "start_date_time", "name", "coins", "max_volunteers", "created_at"
+            "start_date_time", "name", "coins", "max_volunteers", "created_at", "distance"
         ] = "start_date_time",
         sort_dir: Literal["asc", "desc"] = "asc",
         statuses: list[EventStatus] | None = None,
@@ -373,11 +374,13 @@ class EventModel:
             else:
                 filters = age_clause
         if q:
+            # Escape special regex characters to prevent invalid regex patterns
+            escaped_q = re.escape(q)
             filters_q = {
                 "$or": [
-                    {"name": {"$regex": q, "$options": "i"}},
-                    {"description": {"$regex": q, "$options": "i"}},
-                    {"keywords": {"$elemMatch": {"$regex": q, "$options": "i"}}},
+                    {"name": {"$regex": escaped_q, "$options": "i"}},
+                    {"description": {"$regex": escaped_q, "$options": "i"}},
+                    {"keywords": {"$elemMatch": {"$regex": escaped_q, "$options": "i"}}},
                 ]
             }
             if filters:
@@ -388,6 +391,13 @@ class EventModel:
         # Filter by location using $geoNear in aggregation pipeline
         # MongoDB's $near cannot be used inside $and, so we use aggregation
         use_geo = lat is not None and lng is not None and distance_km is not None
+
+        # Validate that distance sorting requires geo parameters
+        if sort_by == "distance" and not use_geo:
+            raise HTTPException(
+                status_code=400,
+                detail="lat, lng, and distance_km must be provided when sort_by='distance'",
+            )
 
         if use_geo:
             location = Location(type="Point", coordinates=[lng, lat])
