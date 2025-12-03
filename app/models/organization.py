@@ -199,5 +199,11 @@ class OrganizationModel:
         docs = await cursor.to_list(length=None)
         return [Organization(**d) for d in docs]
 
+    async def update_organization_image(self, org_id: str, s3_key: str) -> str:
+        await self.collection.update_one(
+            {"_id": ObjectId(org_id)}, {"$set": {"image_s3_key": s3_key}}
+        )
+        return s3_key
+
 
 org_model = OrganizationModel.get_instance()

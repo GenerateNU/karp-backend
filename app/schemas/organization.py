@@ -19,6 +19,7 @@ class Organization(BaseModel):
     description: str
     status: OrganizationStatus
     location: Location | None = None
+    image_s3_key: str | None = None
 
     class Config:
         from_attributes = True
