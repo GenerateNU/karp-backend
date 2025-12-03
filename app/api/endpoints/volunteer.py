@@ -55,7 +55,7 @@ async def get_volunteer_level_progress(current_user: Annotated[User, Depends(get
         volunteer.current_level, volunteer.experience
     )
 
-    return {"percentage": progress_percentage}
+    return progress_percentage
 
 
 @router.get("/{volunteer_id}", response_model=Volunteer)
