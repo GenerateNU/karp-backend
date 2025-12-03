@@ -323,13 +323,11 @@ async def logout(
 
                 if remaining_seconds > 0:
                     token_hash = hashlib.sha256(token.encode()).hexdigest()
+                    # Store a simple marker value (string) to avoid Redis serialization errors
                     await cache_service.set(
                         "blacklist:token",
                         token_hash,
-                        {
-                            "blacklisted_at": datetime.now(UTC).isoformat(),
-                            "user_id": current_user.id,
-                        },
+                        "1",
                         expire=remaining_seconds,
                     )
         except (JWTError, ValueError) as e:
