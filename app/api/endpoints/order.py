@@ -9,6 +9,8 @@ from app.models.volunteer import volunteer_model
 from app.schemas.order import CreateOrderRequest, Order, UpdateOrderRequest
 from app.schemas.user import User, UserType
 from app.services.order import order_service
+from app.schemas.order import OrderStatus
+from app.schemas.item import ItemStatus
 
 router = APIRouter()
 
@@ -105,3 +107,54 @@ async def cancel_order(
 ) -> Order:
     await order_service.authorize_order_access(order_id, current_user)
     return await order_model.cancel_order(order_id)
+
+
+@router.put("/{order_id}/scan", response_model=Order)
+async def scan_item(order_id: str, qr_token: str, item_id: str, current_user: Annotated[User, Depends(get_current_user)]) -> Order:
+    
+    if current_user.user_type != UserType.VOLUNTEER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only volunteers can scan items",
+        )
+    
+    if current_user.entity_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You must be associated with a volunteer profile to scan an item",
+        )
+    if order_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Order ID is required",
+        )
+    if qr_token is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="QR token is required",
+        )
+    if item_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Item ID is required",
+        )
+    
+    order = await order_model.get_order_by_id(order_id)
+    if not order:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Order not found")
+    if order.order_status != OrderStatus.PENDING_PICKUP:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Order is not pending")
+    if order.item_id != item_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Item ID does not match")
+
+    item = await item_model.get_item_by_id(item_id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+    if item.status != ItemStatus.ACTIVE:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Item is not active")
+    if item.qr_token != qr_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="QR token does not match")
+    
+    return await order_model.update_order_status(order_id, UpdateOrderRequest(order_status=OrderStatus.COMPLETED))
+    
+

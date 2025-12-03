@@ -15,6 +15,7 @@ from app.schemas.volunteer import (
     Volunteer,
 )
 from app.services.s3 import s3_service
+from app.services.volunteer import volunteer_service
 from app.utils.user import verify_entity_association, verify_user_role
 
 router = APIRouter()
@@ -40,6 +41,21 @@ async def get_volunteers() -> list[Volunteer]:
 @router.get("/top", response_model=list[Volunteer])
 async def get_top_x_volunteers(limit: int = 10) -> list[Volunteer]:
     return await volunteer_model.get_top_x_volunteers(limit)
+
+
+@router.get("/level-progress")
+async def get_volunteer_level_progress(current_user: Annotated[User, Depends(get_current_user)]):
+    print("current user")
+    print(current_user.entity_id)
+    volunteer = await get_volunteer_by_id(current_user.entity_id)
+    if not volunteer:
+        raise HTTPException(status_code=404, detail="Volunteer not found")
+
+    progress_percentage = await volunteer_service.get_level_progress(
+        volunteer.current_level, volunteer.experience
+    )
+
+    return progress_percentage
 
 
 @router.get("/{volunteer_id}", response_model=Volunteer)

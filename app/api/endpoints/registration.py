@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
@@ -33,13 +33,7 @@ async def get_events_by_volunteer(
     if not volunteer:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
 
-    if current_user.user_type == UserType.VOLUNTEER:
-        if current_user.entity_id != volunteer_id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="You can only view your own events",
-            )
-    elif current_user.user_type != UserType.ADMIN:
+    if current_user.user_type not in [UserType.VOLUNTEER, UserType.ADMIN]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     return await registration_model.get_events_by_volunteer(volunteer_id, registration_status)
@@ -113,7 +107,7 @@ async def check_in_registration(
 
     check_in_start = event.start_date_time - timedelta(minutes=15)
     check_in_end = event.start_date_time + timedelta(minutes=30)
-    current_time = datetime.now()
+    current_time = datetime.now(UTC)
 
     if current_time < check_in_start or current_time > check_in_end:
         raise HTTPException(
@@ -163,7 +157,7 @@ async def check_out_registration(
 
     check_out_start = event.end_date_time - timedelta(minutes=15)
     check_out_end = event.end_date_time + timedelta(minutes=30)
-    current_time = datetime.now()
+    current_time = datetime.now(UTC)
 
     if current_time < check_out_start or current_time > check_out_end:
         raise HTTPException(

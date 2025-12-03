@@ -11,8 +11,10 @@ from app.schemas.organization import (
     OrganizationStatus,
     UpdateOrganizationRequest,
 )
+from app.schemas.s3 import PresignedUrlResponse
 from app.schemas.user import User, UserType
 from app.services.geocoding import geocoding_service
+from app.services.s3 import s3_service
 
 router = APIRouter()
 
@@ -152,3 +154,49 @@ async def delete_organization(
         )
 
     return await org_model.delete_organization(org_id)
+
+
+# Generate a pre-signed URL for an organization image and store the S3 key in MongoDB
+@router.get("/{org_id}/upload-url", response_model=PresignedUrlResponse)
+async def get_organization_upload_url(
+    org_id: str,
+    filename: str,
+    filetype: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    if current_user.user_type not in [UserType.ORGANIZATION, UserType.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only users with organization role can upload an organization image",
+        )
+
+    if current_user.user_type != UserType.ADMIN:
+        if not await user_model.owns_entity(current_user.id, org_id):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You do not have permission to update this organization",
+            )
+
+    url, new_s3_key = s3_service.generate_presigned_url(
+        filename, content_type=filetype, dir_prefix=f"organizations/{org_id}"
+    )
+
+    await org_model.update_organization_image(org_id, new_s3_key)
+
+    return PresignedUrlResponse(
+        upload_url=url,
+        file_url=new_s3_key,
+    )
+
+
+# Get an organization image via a pre-signed URL
+@router.get("/{org_id}/image")
+async def get_organization_image(org_id: str):
+    organization = await org_model.get_organization_by_id(org_id)
+    if not organization or not organization.image_s3_key:
+        raise HTTPException(status_code=404, detail="Image not found")
+    file_type = organization.image_s3_key.split(".")[-1]
+    presigned_url = s3_service.get_presigned_url(
+        organization.image_s3_key, content_type=f"image/{file_type}"
+    )
+    return {"url": presigned_url}

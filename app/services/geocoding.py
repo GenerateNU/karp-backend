@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, status
 from httpx import AsyncClient
 
@@ -13,6 +15,7 @@ class GeocodingService:
         if GeocodingService._instance is not None:
             raise Exception("This class is a singleton!")
         self.geocode_url = "https://maps.googleapis.com/maps/api/geocode/json"
+        self.logger = logging.getLogger(__name__)
 
     @classmethod
     def get_instance(cls) -> "GeocodingService":
@@ -28,46 +31,39 @@ class GeocodingService:
         return result
 
     async def location_to_coordinates(self, address: str) -> Location:
-        """
-        Geocode an address and return only the location coordinates (for backward compatibility).
-        """
-        result = await self._geocode_internal(address)
-        return result.location
-
-    async def _geocode_internal(self, address: str) -> GeocodingResult:
-        # Validate input
-        if not address or not address.strip():
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=(
-                    "Address cannot be empty. "
-                    "Please provide a zipcode, address, or location name."
-                ),
-            )
-
-        # Check if API key is configured
-        if not settings.GOOGLE_MAPS_KEY:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Geocoding service is not configured. Please contact support.",
-            )
-
-        params = {"address": address.strip(), "key": settings.GOOGLE_MAPS_KEY}
-
-        try:
-            async with AsyncClient(timeout=10) as client:
-                r = await client.get(self.geocode_url, params=params)
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Failed to connect to geocoding service: {str(e)}",
-            ) from e
-
+        params = {"address": address, "key": settings.GOOGLE_MAPS_KEY}
+        async with AsyncClient(timeout=20) as client:
+            r = await client.get(self.geocode_url, params=params)
         if r.status_code != 200:
+            # Log upstream response for diagnosis (does not include secrets)
+            try:
+                self.logger.error(
+                    "Geocoding upstream HTTP error %s for address '%s': %s",
+                    r.status_code,
+                    address,
+                    r.text,
+                )
+            except Exception:
+                pass
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail=f"Geocoding service returned error status {r.status_code}",
             )
+        data = r.json()
+        if data.get("status") != "OK" or not data.get("results"):
+            # Include Google's error_message when present to distinguish configuration issues
+            error_message = data.get("error_message")
+            self.logger.warning(
+                "Geocoding failed for address '%s' with status '%s' and message '%s'",
+                address,
+                data.get("status"),
+                error_message,
+            )
+            detail = f"Geocoding failed: {data.get('status')}" + (
+                f" - {error_message}" if error_message else ""
+            )
+            raise HTTPException(status_code=400, detail=detail)
+        loc = data["results"][0]["geometry"]["location"]
 
         try:
             data = r.json()

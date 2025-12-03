@@ -36,8 +36,8 @@ class VolunteerService:
 
     async def check_level_up(self, volunteer: Volunteer) -> None:
         current_exp = volunteer.experience
-        for level, xp in self.level_dict.items():
-            if current_exp <= xp:
+        for level, max_xp in self.level_dict.items():
+            if current_exp <= max_xp:
                 new_level = level
                 break
 
@@ -50,6 +50,20 @@ class VolunteerService:
             await self.check_and_grant_achievement(
                 volunteer.id, KarpEvent.USER_LEVEL_UP, old_level + 1, new_level
             )
+
+    async def get_level_progress(self, level, cur_xp):
+        # TODO: fix later
+        if level < 1:
+            level = 1
+        if level == 1:
+            min_xp_cur_level = 0
+        else:
+            min_xp_cur_level = self.level_dict[level - 1]
+        max_xp_cur_level = self.level_dict[level]
+        xp_advanced = cur_xp - min_xp_cur_level
+        xp_needed_to_advance = max_xp_cur_level - min_xp_cur_level
+        progress_percentage = (xp_advanced / xp_needed_to_advance) * 100
+        return progress_percentage
 
     async def check_and_grant_achievement(
         self, volunteer_id: str, event_type: KarpEvent, threshold_min: int, threshold_max: int
@@ -93,8 +107,12 @@ class VolunteerService:
     ) -> None:
         try:
             if registration.clocked_in and registration.clocked_out:
+                print("prev experience:", volunteer.experience)
                 new_experience = volunteer.experience + event.coins
+                print("new experience:", new_experience)
+                print("prev coins:", volunteer.coins)
                 new_coins = volunteer.coins + event.coins
+                print("new coins", new_coins)
                 update_volunteer_req = UpdateVolunteerRequest(
                     experience=new_experience, coins=new_coins
                 )

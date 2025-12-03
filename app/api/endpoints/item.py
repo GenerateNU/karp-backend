@@ -178,7 +178,7 @@ async def get_item_qr_code(item_id: str, current_user: Annotated[User, Depends(g
     if current_time >= item.expiration:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can't create a qr code for an expired item",
+            detail="You can't create a QR code for an expired item",
         )
 
     if item.qr_token is not None and item.qr_token is not None:
