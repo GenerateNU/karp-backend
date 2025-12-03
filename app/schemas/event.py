@@ -80,7 +80,7 @@ class CreateEventRequest(BaseModel):
 class UpdateEventRequest(BaseModel):
     status: EventStatus | None = None
     name: str | None = None
-    location: str | None = None
+    address: str | None = None
     max_volunteers: int | None = None
     start_date_time: datetime | None = None
     end_date_time: datetime | None = None

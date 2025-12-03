@@ -282,12 +282,17 @@ class EventModel:
         )
         return [Event(**event) for event in events_list]
 
-    async def update_event(self, event_id: str, event: UpdateEventRequest) -> Event | None:
+    async def update_event(
+        self, event_id: str, event: UpdateEventRequest, location: Location | None = None
+    ) -> Event | None:
         event_data = await self.collection.find_one({"_id": ObjectId(event_id)})
         if event_data:
             updated_data = event.model_dump(
-                mode="json", by_alias=True, exclude_unset=True, exclude={"_id", "id"}
+                mode="json", by_alias=True, exclude_unset=True, exclude={"_id", "id", "address"}
             )
+            # If address was provided and geocoded, update location
+            if location:
+                updated_data["location"] = location.model_dump()
             await self.collection.update_one({"_id": ObjectId(event_id)}, {"$set": updated_data})
             updated_event = await self.collection.find_one({"_id": ObjectId(event_id)})
 
@@ -380,22 +385,53 @@ class EventModel:
             else:
                 filters = filters_q
 
-        if lat is not None and lng is not None and distance_km is not None:
+        # Filter by location using $geoNear in aggregation pipeline
+        # MongoDB's $near cannot be used inside $and, so we use aggregation
+        use_geo = lat is not None and lng is not None and distance_km is not None
+
+        if use_geo:
             location = Location(type="Point", coordinates=[lng, lat])
             max_distance_meters = int(distance_km * 1000)
-            filters["location"] = {
-                "$near": {"$geometry": location.model_dump(), "$maxDistance": max_distance_meters}
-            }
 
-        direction = 1 if sort_dir == "asc" else -1
-        skip = max(0, (page - 1) * max(1, limit))
-        cursor = (
-            self.collection.find(filters or {})
-            .sort([(sort_by, direction), ("_id", 1)])
-            .skip(skip)
-            .limit(max(1, min(200, limit)))
-        )
-        docs = await cursor.to_list(length=None)
+            # Build aggregation pipeline
+            pipeline = []
+
+            # Stage 1: $geoNear must be first in pipeline
+            geo_near_stage = {
+                "$geoNear": {
+                    "near": location.model_dump(),
+                    "distanceField": "distance",
+                    "maxDistance": max_distance_meters,
+                    "spherical": True,
+                    "query": filters or {},  # Apply other filters in geoNear
+                }
+            }
+            pipeline.append(geo_near_stage)
+
+            # Stage 2: Sort
+            direction = 1 if sort_dir == "asc" else -1
+            pipeline.append({"$sort": {sort_by: direction, "_id": 1}})
+
+            # Stage 3: Skip and limit
+            skip = max(0, (page - 1) * max(1, limit))
+            safe_limit = max(1, min(200, limit))
+            pipeline.append({"$skip": skip})
+            pipeline.append({"$limit": safe_limit})
+
+            # Execute aggregation
+            docs = await self.collection.aggregate(pipeline).to_list(length=None)
+        else:
+            # No location filter - use regular find
+            direction = 1 if sort_dir == "asc" else -1
+            skip = max(0, (page - 1) * max(1, limit))
+            safe_limit = max(1, min(200, limit))
+            cursor = (
+                self.collection.find(filters or {})
+                .sort([(sort_by, direction), ("_id", 1)])
+                .skip(skip)
+                .limit(safe_limit)
+            )
+            docs = await cursor.to_list(length=None)
 
         return [Event(**d) for d in docs]
 

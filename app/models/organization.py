@@ -57,74 +57,105 @@ class OrganizationModel:
 
         filters = filters_status
 
-        use_geo = False
-        if lat is not None and lng is not None and distance_km is not None:
-            location = Location(type="Point", coordinates=[lng, lat])
-            max_distance_meters = int(distance_km * 1000)
-            geo_clause = {
-                "location": {
-                    "$near": {
-                        "$geometry": location.model_dump(),
-                        "$maxDistance": max_distance_meters,
-                    }
-                }
-            }
-            filters = {"$and": [filters, geo_clause]} if filters else geo_clause
-            use_geo = True
+        use_geo = lat is not None and lng is not None and distance_km is not None
 
         direction = 1 if sort_dir == "asc" else -1
         skip = max(0, (page - 1) * max(1, limit))
         safe_limit = max(1, min(200, limit))
 
-        if sort_by == "status":
-            match_stage = filters or {}
-            status_order = {
-                "APPROVED": 0,
-                "IN_REVIEW": 1,
-                "REJECTED": 2,
-                "DELETED": 3,
-            }
+        if use_geo:
+            location = Location(type="Point", coordinates=[lng, lat])
+            max_distance_meters = int(distance_km * 1000)
 
-            status_branches = [
-                {"case": {"$eq": ["$status", status]}, "then": rank}
-                for status, rank in status_order.items()
-            ]
+            # Build aggregation pipeline for geospatial query
+            pipeline = []
 
-            pipeline: list[dict] = []
-            if match_stage:
-                pipeline.append({"$match": match_stage})
-
-            pipeline.append(
-                {
-                    "$addFields": {
-                        "status_rank": {"$switch": {"branches": status_branches, "default": 99}}
-                    }
+            # Stage 1: $geoNear must be first
+            geo_near_stage = {
+                "$geoNear": {
+                    "near": location.model_dump(),
+                    "distanceField": "distance",
+                    "maxDistance": max_distance_meters,
+                    "spherical": True,
+                    "query": filters or {},
                 }
-            )
+            }
+            pipeline.append(geo_near_stage)
 
-            pipeline.append({"$sort": {"status_rank": direction, "_id": 1}})
-            pipeline.append({"$project": {"status_rank": 0}})
+            if sort_by == "status":
+                status_order = {
+                    "APPROVED": 0,
+                    "IN_REVIEW": 1,
+                    "REJECTED": 2,
+                    "DELETED": 3,
+                }
+                status_branches = [
+                    {"case": {"$eq": ["$status", status]}, "then": rank}
+                    for status, rank in status_order.items()
+                ]
+                pipeline.append(
+                    {
+                        "$addFields": {
+                            "status_rank": {"$switch": {"branches": status_branches, "default": 99}}
+                        }
+                    }
+                )
+                pipeline.append({"$sort": {"status_rank": direction, "_id": 1}})
+                pipeline.append({"$project": {"status_rank": 0}})
+            elif sort_by == "distance":
+                # Sort by distance (already calculated by $geoNear)
+                pipeline.append({"$sort": {"distance": direction, "_id": 1}})
+            else:
+                # Sort by name
+                pipeline.append({"$sort": {"name": direction, "_id": 1}})
+
             pipeline.append({"$skip": skip})
             pipeline.append({"$limit": safe_limit})
 
             docs = await self.collection.aggregate(pipeline).to_list(length=None)
             return [Organization(**d) for d in docs]
 
-        elif sort_by == "distance" and use_geo:
-            cursor = self.collection.find(filters or {}).skip(skip).limit(safe_limit)
-
         else:
-            sort_field = sort_by if sort_by in ("name", "status") else "name"
-            cursor = (
-                self.collection.find(filters or {})
-                .sort([(sort_field, direction), ("_id", 1)])
-                .skip(skip)
-                .limit(safe_limit)
-            )
+            # No location filter - use regular find
+            if sort_by == "status":
+                status_order = {
+                    "APPROVED": 0,
+                    "IN_REVIEW": 1,
+                    "REJECTED": 2,
+                    "DELETED": 3,
+                }
+                status_branches = [
+                    {"case": {"$eq": ["$status", status]}, "then": rank}
+                    for status, rank in status_order.items()
+                ]
 
-        # Changed this line - convert cursor results to Organization objects
-        docs = await cursor.to_list(length=None)
-        return [Organization(**d) for d in docs]
+                pipeline = []
+                if filters:
+                    pipeline.append({"$match": filters})
+                pipeline.append(
+                    {
+                        "$addFields": {
+                            "status_rank": {"$switch": {"branches": status_branches, "default": 99}}
+                        }
+                    }
+                )
+                pipeline.append({"$sort": {"status_rank": direction, "_id": 1}})
+                pipeline.append({"$project": {"status_rank": 0}})
+                pipeline.append({"$skip": skip})
+                pipeline.append({"$limit": safe_limit})
+
+                docs = await self.collection.aggregate(pipeline).to_list(length=None)
+                return [Organization(**d) for d in docs]
+            else:
+                sort_field = sort_by if sort_by in ("name", "status") else "name"
+                cursor = (
+                    self.collection.find(filters or {})
+                    .sort([(sort_field, direction), ("_id", 1)])
+                    .skip(skip)
+                    .limit(safe_limit)
+                )
+                docs = await cursor.to_list(length=None)
+                return [Organization(**d) for d in docs]
 
     async def get_organization_by_id(self, id: str) -> Organization:
         org = await self.collection.find_one(
@@ -173,10 +204,13 @@ class OrganizationModel:
     async def search_organizations(
         self,
         q: str | None = None,
+        lat: float | None = None,
+        lng: float | None = None,
+        distance_km: float | None = None,
         page: int = 1,
         limit: int = 20,
     ) -> list[Organization]:
-        filters = {}
+        filters: dict = {}
 
         if q:
             filters = {
@@ -186,17 +220,50 @@ class OrganizationModel:
                 ]
             }
 
+        # Filter by location using $geoNear in aggregation pipeline
+        use_geo = lat is not None and lng is not None and distance_km is not None
+
         skip = max(0, (page - 1) * max(1, limit))
         safe_limit = max(1, min(200, limit))
 
-        cursor = (
-            self.collection.find(filters)
-            .sort([("name", 1), ("_id", 1)])
-            .skip(skip)
-            .limit(safe_limit)
-        )
+        if use_geo:
+            location = Location(type="Point", coordinates=[lng, lat])
+            max_distance_meters = int(distance_km * 1000)
 
-        docs = await cursor.to_list(length=None)
+            # Build aggregation pipeline
+            pipeline = []
+
+            # Stage 1: $geoNear must be first in pipeline
+            geo_near_stage = {
+                "$geoNear": {
+                    "near": location.model_dump(),
+                    "distanceField": "distance",
+                    "maxDistance": max_distance_meters,
+                    "spherical": True,
+                    "query": filters or {},  # Apply other filters in geoNear
+                }
+            }
+            pipeline.append(geo_near_stage)
+
+            # Stage 2: Sort
+            pipeline.append({"$sort": {"name": 1, "_id": 1}})
+
+            # Stage 3: Skip and limit
+            pipeline.append({"$skip": skip})
+            pipeline.append({"$limit": safe_limit})
+
+            # Execute aggregation
+            docs = await self.collection.aggregate(pipeline).to_list(length=None)
+        else:
+            # No location filter - use regular find
+            cursor = (
+                self.collection.find(filters or {})
+                .sort([("name", 1), ("_id", 1)])
+                .skip(skip)
+                .limit(safe_limit)
+            )
+            docs = await cursor.to_list(length=None)
+
         return [Organization(**d) for d in docs]
 
 

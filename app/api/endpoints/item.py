@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 
 from app.api.endpoints.user import get_current_user
 from app.core.enums import SortOrder
@@ -46,8 +46,15 @@ async def get_items(
     vendor_id: str | None = None,
     sort_by: ItemSortParam | None = None,
     sort_order: SortOrder = SortOrder.ASC,
+    lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
+    distance_km: Annotated[float | None, Query(gt=0, le=200)] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[Item]:
-    return await item_model.get_items(status, search_text, vendor_id, sort_by, sort_order)
+    return await item_model.get_items(
+        status, search_text, vendor_id, sort_by, sort_order, lat, lng, distance_km, page, limit
+    )
 
 
 @router.get("/{item_id}", response_model=Item)

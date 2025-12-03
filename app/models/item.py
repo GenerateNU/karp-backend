@@ -7,6 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection  # noqa: TCH002
 from app.core.enums import SortOrder
 from app.database.mongodb import db
 from app.schemas.item import CreateItemRequest, Item, ItemSortParam, ItemStatus, UpdateItemRequest
+from app.schemas.location import Location
 from app.utils.object_id import parse_object_id
 
 
@@ -52,32 +53,84 @@ class ItemModel:
         vendor_id: str | None = None,
         sort_by: ItemSortParam | None = None,
         sort_order: SortOrder = SortOrder.ASC,
+        lat: float | None = None,
+        lng: float | None = None,
+        distance_km: float | None = None,
+        page: int = 1,
+        limit: int = 20,
     ) -> list[Item]:
-        query = {}
+        filters: dict = {}
 
         if status:
-            query["status"] = status
+            filters["status"] = status
         else:
-            query["status"] = {"$eq": ItemStatus.ACTIVE}
+            filters["status"] = ItemStatus.ACTIVE
 
         if search_text:
-            query["name"] = {
+            filters["name"] = {
                 "$regex": search_text,
                 "$options": "i",
             }  # case-insensitive partial match
 
         if vendor_id:
-            query["vendor_id"] = ObjectId(vendor_id)
+            filters["vendor_id"] = ObjectId(vendor_id)
+
+        # Filter by location through vendor
+        # First find vendors within the location radius, then filter items by those vendors
+        vendor_ids = None
+        if lat is not None and lng is not None and distance_km is not None:
+            from app.models.vendor import vendor_model
+
+            location = Location(type="Point", coordinates=[lng, lat])
+            max_distance_meters = int(distance_km * 1000)
+
+            # Use $geoNear in aggregation pipeline for vendor query
+            vendor_pipeline = [
+                {
+                    "$geoNear": {
+                        "near": location.model_dump(),
+                        "distanceField": "distance",
+                        "maxDistance": max_distance_meters,
+                        "spherical": True,
+                    }
+                },
+                {"$project": {"_id": 1}},
+            ]
+            vendors_list = await vendor_model.collection.aggregate(vendor_pipeline).to_list(
+                length=None
+            )
+            vendor_ids = [ObjectId(v["_id"]) for v in vendors_list if v.get("_id")]
+
+            if not vendor_ids:
+                # No vendors in range, return empty list
+                return []
+
+            # Add vendor filter
+            if "$and" in filters:
+                filters["$and"].append({"vendor_id": {"$in": vendor_ids}})
+            elif filters:
+                filters = {"$and": [filters, {"vendor_id": {"$in": vendor_ids}}]}
+            else:
+                filters = {"vendor_id": {"$in": vendor_ids}}
 
         sort_criteria = []
         if sort_by:
             sort_direction = 1 if sort_order == SortOrder.ASC else -1
             sort_criteria.append((sort_by.field_name, sort_direction))
 
+        skip = max(0, (page - 1) * max(1, limit))
+        safe_limit = max(1, min(200, limit))
+
         if sort_criteria:
-            items_list = await self.collection.find(query).sort(sort_criteria).to_list()
+            items_list = (
+                await self.collection.find(filters)
+                .sort(sort_criteria)
+                .skip(skip)
+                .limit(safe_limit)
+                .to_list()
+            )
         else:
-            items_list = await self.collection.find(query).to_list()
+            items_list = await self.collection.find(filters).skip(skip).limit(safe_limit).to_list()
 
         return [Item(**item) for item in items_list]
 

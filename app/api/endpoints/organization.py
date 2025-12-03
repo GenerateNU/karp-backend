@@ -52,10 +52,15 @@ async def get_organizations(
 @router.get("/search", response_model=list[Organization])
 async def search_organizations(
     q: Annotated[str | None, Query(description="Search term (name, description, keywords)")] = None,
+    lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
+    lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
+    distance_km: Annotated[float | None, Query(gt=0, le=200)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[Organization]:
-    return await org_model.search_organizations(q=q, page=page, limit=limit)
+    return await org_model.search_organizations(
+        q=q, lat=lat, lng=lng, distance_km=distance_km, page=page, limit=limit
+    )
 
 
 @router.get("/{org_id}", response_model=Organization)
@@ -85,7 +90,22 @@ async def create_organization(
             detail="You have already been associated with a organization",
         )
 
-    location = await geocoding_service.location_to_coordinates(org.address)
+    if not org.address or not org.address.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Address is required to create an organization",
+        )
+
+    try:
+        location = await geocoding_service.location_to_coordinates(org.address)
+    except HTTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Invalid address: {e.detail}. "
+                "Please provide a valid address that can be geocoded."
+            ),
+        ) from e
 
     return await org_model.create_organization(org, current_user.id, location)
 
