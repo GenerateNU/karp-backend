@@ -9,6 +9,8 @@ from app.database.mongodb import db
 from app.schemas.item import CreateItemRequest, Item, ItemSortParam, ItemStatus, UpdateItemRequest
 from app.schemas.location import Location
 from app.utils.object_id import parse_object_id
+from app.models.vendor import vendor_model
+from app.schemas.vendor import VendorStatus
 
 
 class ItemModel:
@@ -87,6 +89,7 @@ class ItemModel:
         self,
         status: ItemStatus | None = None,
         search_text: str | None = None,
+        vendor_search: str | None = None,
         vendor_id: str | None = None,
         sort_by: ItemSortParam | None = None,
         sort_order: SortOrder = SortOrder.ASC,
@@ -108,6 +111,31 @@ class ItemModel:
                 "$regex": search_text,
                 "$options": "i",
             }  # case-insensitive partial match
+
+        if vendor_search:
+            # Find vendors matching the search text
+            vendor_filters = {
+                "status": VendorStatus.APPROVED,
+                "name": {
+                    "$regex": vendor_search,
+                    "$options": "i",
+                }
+            }
+            matching_vendors = await vendor_model.collection.find(vendor_filters).to_list(length=None)
+            matching_vendor_ids = [ObjectId(v["_id"]) for v in matching_vendors]
+            
+            if matching_vendor_ids:
+                # Filter items by matching vendor IDs
+                if "$and" in filters:
+                    filters["$and"].append({"vendor_id": {"$in": matching_vendor_ids}})
+                else:
+                    filters["vendor_id"] = {"$in": matching_vendor_ids}
+            else:
+                # No matching vendors, return empty result by using $in with empty array
+                if "$and" in filters:
+                    filters["$and"].append({"vendor_id": {"$in": []}})
+                else:
+                    filters["vendor_id"] = {"$in": []}
 
         if vendor_id:
             filters["vendor_id"] = ObjectId(vendor_id)
