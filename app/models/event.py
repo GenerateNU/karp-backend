@@ -82,8 +82,12 @@ class EventModel:
 
     async def get_all_events(
         self,
+        q: str | None = None,
         sort_by: (
-            Literal["been_before", "new_additions", "coins_low_to_high", "coins_high_to_low"] | None
+            Literal[
+                "been_before", "new_additions", "coins_low_to_high", "coins_high_to_low", "distance"
+            ]
+            | None
         ) = None,
         causes: list[str] | None = None,
         qualifications: list[str] | None = None,
@@ -96,10 +100,25 @@ class EventModel:
         volunteer_event_ids: set[str] | None = None,
     ) -> list[Event]:
         # Start with base filter for published events
-        filters: dict = {"status": EventStatus.PUBLISHED}
+        filters: dict = {"status": EventStatus.APPROVED}
+
+        # Filter by search term (name, description, keywords)
+        if q:
+            # Escape special regex characters to prevent invalid regex patterns
+            escaped_q = re.escape(q)
+            filters_q = {
+                "$or": [
+                    {"name": {"$regex": escaped_q, "$options": "i"}},
+                    {"description": {"$regex": escaped_q, "$options": "i"}},
+                    {"keywords": {"$elemMatch": {"$regex": escaped_q, "$options": "i"}}},
+                ]
+            }
+            if "$and" in filters:
+                filters["$and"].append(filters_q)
+            else:
+                filters = {"$and": [filters, filters_q]}
 
         # Filter by causes and/or qualifications (using keywords field)
-        keyword_filters = []
         if causes and qualifications:
             # Require all keywords from both lists to be present
             all_keywords = list(set(causes + qualifications))
@@ -125,10 +144,21 @@ class EventModel:
         # Note: We'll filter in Python after fetching, as MongoDB date filtering with $expr
         # can be complex and we need to check day of week and time ranges
 
+        if sort_by == "distance":
+            if not (lat is not None and lng is not None and location_radius_km is not None):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "lat, lng, and location_radius_km must be provided "
+                        "when sort_by='distance'"
+                    ),
+                )
+
         # Filter by location
         # Note: $near must be the first condition, so we handle it separately
         location_query = None
-        if lat and lng and location_radius_km:
+        use_geo_near = sort_by == "distance" and lat and lng and location_radius_km
+        if lat and lng and location_radius_km and not use_geo_near:
             location = Location(type="Point", coordinates=[lng, lat])
             max_distance_meters = int(location_radius_km * 1000)
             location_query = {
@@ -151,12 +181,7 @@ class EventModel:
         else:
             final_filters = filters
 
-        # Get all events matching filters
-        events_cursor = self.collection.find(final_filters)
-        events_list = await events_cursor.to_list(length=None)
-        events = [Event(**event) for event in events_list]
-
-        # Move availability filtering into the MongoDB query for efficiency
+        # Apply availability filtering
         if availability_days:
             # Map day names to MongoDB $dayOfWeek numbers (1=Sunday, 2=Monday, ..., 7=Saturday)
             day_name_to_mongo = {
@@ -227,16 +252,47 @@ class EventModel:
                         }
                     )
 
-            # Add $expr to the MongoDB query
+            # Add $expr to the final_filters
             if expr_conditions:
-                if "query" not in locals():
-                    query = {}
-                query["$expr"] = (
-                    {"$and": expr_conditions} if len(expr_conditions) > 1 else expr_conditions[0]
-                )
+                expr_filter = {
+                    "$expr": (
+                        {"$and": expr_conditions}
+                        if len(expr_conditions) > 1
+                        else expr_conditions[0]
+                    )
+                }
+                # Merge $expr into final_filters
+                if "$and" in final_filters:
+                    final_filters["$and"].append(expr_filter)
+                else:
+                    final_filters = {"$and": [final_filters, expr_filter]}
 
-        # Now fetch events from the database using the updated query
-        # (Assume the rest of the code uses this query to fetch events)
+        # Get all events matching filters
+        if use_geo_near:
+            # Use aggregation pipeline with $geoNear if sorting by distance
+            location = Location(type="Point", coordinates=[lng, lat])
+            max_distance_meters = int(location_radius_km * 1000)
+
+            pipeline = []
+            geo_near_stage = {
+                "$geoNear": {
+                    "near": location.model_dump(),
+                    "distanceField": "distance",
+                    "maxDistance": max_distance_meters,
+                    "spherical": True,
+                    "query": final_filters,
+                }
+            }
+            pipeline.append(geo_near_stage)
+            pipeline.append({"$sort": {"distance": 1}})
+
+            events_list = await self.collection.aggregate(pipeline).to_list(length=None)
+            events = [Event(**event) for event in events_list]
+        else:
+            events_cursor = self.collection.find(final_filters)
+            events_list = await events_cursor.to_list(length=None)
+            events = [Event(**event) for event in events_list]
+
         # Handle "been before" filter - requires volunteer_event_ids from endpoint
         if sort_by == "been_before" and volunteer_event_ids is not None:
             # Separate events into "been before" and "not been before"
@@ -248,7 +304,14 @@ class EventModel:
 
         # Apply sorting
         if sort_by == "new_additions":
-            events.sort(key=lambda x: x.created_at, reverse=True)
+            # Normalize datetimes to UTC-aware before comparing
+            def get_created_at_key(event):
+                created_at = event.created_at
+                if created_at.tzinfo is None:
+                    return created_at.replace(tzinfo=UTC)
+                return created_at
+
+            events.sort(key=get_created_at_key, reverse=True)
         elif sort_by == "coins_low_to_high":
             events.sort(key=lambda x: x.coins)
         elif sort_by == "coins_high_to_low":

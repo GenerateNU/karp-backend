@@ -35,7 +35,7 @@ async def get_organizations(
     ] = None,
     lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
     lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
-    distance_km: Annotated[float | None, Query(gt=0, le=200)] = None,
+    distance_km: Annotated[float | None, Query(gt=0, le=500)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[Organization]:
@@ -56,7 +56,7 @@ async def search_organizations(
     q: Annotated[str | None, Query(description="Search term (name, description, keywords)")] = None,
     lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
     lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
-    distance_km: Annotated[float | None, Query(gt=0, le=200)] = None,
+    distance_km: Annotated[float | None, Query(gt=0, le=500)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[Organization]:

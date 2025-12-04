@@ -24,9 +24,13 @@ router = APIRouter()
 
 @router.get("/all", response_model=list[Event])
 async def get_events(
+    # Search term
+    q: Annotated[str | None, Query(description="Search term (name, description, keywords)")] = None,
     # Sort filters
     sort_by: Annotated[
-        Literal["been_before", "new_additions", "coins_low_to_high", "coins_high_to_low"],
+        Literal[
+            "been_before", "new_additions", "coins_low_to_high", "coins_high_to_low", "distance"
+        ],
         Query(description="Sort order for events"),
     ] = None,
     # Cause filters (pick up to 5)
@@ -108,7 +112,7 @@ async def get_events(
         str | None, Query(description="State abbreviation for location filter")
     ] = None,
     location_radius_km: Annotated[
-        float | None, Query(ge=0, le=200, description="Radius in kilometers")
+        float | None, Query(ge=0, le=500, description="Radius in kilometers")
     ] = None,
     lat: Annotated[float | None, Query(ge=-90, le=90, description="Latitude")] = None,
     lng: Annotated[float | None, Query(ge=-180, le=180, description="Longitude")] = None,
@@ -143,6 +147,7 @@ async def get_events(
         volunteer_event_ids = {event.id for event in volunteer_events}
 
     return await event_model.get_all_events(
+        q=q,
         sort_by=sort_by,
         causes=causes,
         qualifications=qualifications,
@@ -179,7 +184,7 @@ async def search_events(
     ] = None,
     lat: Annotated[float | None, Query(ge=-90, le=90)] = None,
     lng: Annotated[float | None, Query(ge=-180, le=180)] = None,
-    distance_km: Annotated[float | None, Query(gt=0, le=200)] = None,
+    distance_km: Annotated[float | None, Query(gt=0, le=500)] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[Event]:
