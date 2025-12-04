@@ -142,7 +142,14 @@ class VolunteerModel:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Invalid preferences: {invalid}",
                 )
-        result = await self.collection.insert_one(Volunteer(**volunteer_data).model_dump())
+        insert_doc = {
+            **volunteer_data,
+            "coins": 0,
+            "is_active": True,
+            "experience": 0,
+            "current_level": 1,
+        }
+        result = await self.collection.insert_one(insert_doc)
         await user_model.update_entity_id_by_id(user_id, str(result.inserted_id))
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
         return self._to_volunteer(inserted_doc)
