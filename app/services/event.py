@@ -61,8 +61,10 @@ class EventService:
                 detail=f"Failed to create event: {e}",
             ) from e
 
-    async def update_event(self, event_id: str, event: UpdateEventRequest) -> Event:
-        updated_event = await self.event_model.update_event(event_id, event)
+    async def update_event(
+        self, event_id: str, event: UpdateEventRequest, location: Location | None = None
+    ) -> Event:
+        updated_event = await self.event_model.update_event(event_id, event, location)
 
         # Create notifications when event is approved
         if updated_event.status == EventStatus.APPROVED:

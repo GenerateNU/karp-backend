@@ -166,7 +166,8 @@ async def get_events_by_org(organization_id: str) -> list[Event]:
 async def search_events(
     q: Annotated[str | None, Query(description="Search term (name, description, keywords)")] = None,
     sort_by: Annotated[
-        Literal["start_date_time", "name", "coins", "max_volunteers", "created_at"], Query()
+        Literal["start_date_time", "name", "coins", "max_volunteers", "created_at", "distance"],
+        Query(),
     ] = "start_date_time",
     sort_dir: Annotated[Literal["asc", "desc"], Query()] = "asc",
     statuses: Annotated[
@@ -222,13 +223,22 @@ async def create_event(
                 detail="Your organization is not approved to create events",
             )
 
-    if not event.address:
+    if not event.address or not event.address.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Address is required to create an event",
         )
 
-    coordinates = await geocoding_service.location_to_coordinates(event.address)
+    try:
+        coordinates = await geocoding_service.location_to_coordinates(event.address)
+    except HTTPException as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Invalid address: {e.detail}. "
+                "Please provide a valid address that can be geocoded."
+            ),
+        ) from e
 
     ai_difficulty_coefficient = await event_service.estimate_event_difficulty(
         event.description or ""
@@ -296,7 +306,26 @@ async def update_event(
     old_event = await event_model.get_event_by_id(event_id)
     old_status = old_event.status if old_event else None
 
-    updated_event = await event_service.update_event(event_id, event)
+    # If address is provided, geocode it and update location
+    location = None
+    if event.address:
+        if not event.address.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Address cannot be empty",
+            )
+        try:
+            location = await geocoding_service.location_to_coordinates(event.address)
+        except HTTPException as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Invalid address: {e.detail}. "
+                    "Please provide a valid address that can be geocoded."
+                ),
+            ) from e
+
+    updated_event = await event_service.update_event(event_id, event, location)
 
     if updated_event and updated_event.id:
         new_status = updated_event.status

@@ -52,6 +52,9 @@ class VolunteerService:
             )
 
     async def get_level_progress(self, level, cur_xp):
+        # TODO: fix later
+        if level < 1:
+            level = 1
         if level == 1:
             min_xp_cur_level = 0
         else:

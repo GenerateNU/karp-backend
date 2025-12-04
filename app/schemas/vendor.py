@@ -4,6 +4,8 @@ from enum import Enum
 from bson import ObjectId
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 
+from app.schemas.location import Location
+
 
 class VendorStatus(str, Enum):
     APPROVED = "APPROVED"
@@ -21,6 +23,7 @@ class Vendor(BaseModel):
     name: str
     business_type: str
     status: VendorStatus = VendorStatus.PENDING
+    location: Location | None = None
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
 
@@ -38,9 +41,11 @@ class Vendor(BaseModel):
 class CreateVendorRequest(BaseModel):
     name: str
     business_type: str
+    address: str
 
 
 class UpdateVendorRequest(BaseModel):
     name: str | None = None
     business_type: str | None = None
     status: VendorStatus | None = None
+    address: str | None = None

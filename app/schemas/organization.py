@@ -18,6 +18,7 @@ class Organization(BaseModel):
     name: str
     description: str
     status: OrganizationStatus
+    address: str | None = None
     location: Location | None = None
     image_s3_key: str | None = None
 
