@@ -29,10 +29,31 @@ async def get_events(
     # Sort filters
     sort_by: Annotated[
         Literal[
-            "been_before", "new_additions", "coins_low_to_high", "coins_high_to_low", "distance"
+            "been_before",
+            "new_additions",
+            "coins_low_to_high",
+            "coins_high_to_low",
+            "distance",
+            "start_date_time",
+            "name",
+            "coins",
+            "max_volunteers",
+            "created_at",
         ],
         Query(description="Sort order for events"),
     ] = None,
+    sort_dir: Annotated[Literal["asc", "desc"], Query(description="Sort direction")] = "desc",
+    statuses: Annotated[
+        list[EventStatus] | None, Query(description="Allowed event statuses")
+    ] = None,
+    organization_id: Annotated[str | None, Query(description="Filter by organization ID")] = None,
+    # Age filter
+    age: Annotated[
+        int | None, Query(ge=0, description="User age for eligibility filtering")
+    ] = None,
+    # Pagination
+    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    limit: Annotated[int, Query(ge=1, le=200, description="Items per page")] = 200,
     # Cause filters (pick up to 5)
     causes: Annotated[
         list[
@@ -149,6 +170,12 @@ async def get_events(
     return await event_model.get_all_events(
         q=q,
         sort_by=sort_by,
+        sort_dir=sort_dir,
+        statuses=statuses,
+        organization_id=organization_id,
+        age=age,
+        page=page,
+        limit=limit,
         causes=causes,
         qualifications=qualifications,
         availability_days=availability_days,
