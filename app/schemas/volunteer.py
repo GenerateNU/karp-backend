@@ -61,7 +61,7 @@ class Volunteer(BaseModel):
     experience: int = 0
     location: Location
     image_s3_key: str | None = None
-    current_level: int = 0
+    current_level: int = 1
 
     class Config:
         from_attributes = True
