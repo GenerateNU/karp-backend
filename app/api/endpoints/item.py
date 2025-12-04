@@ -43,6 +43,7 @@ async def post_item(
 async def get_items(
     status: Annotated[ItemStatus | None, None] = None,
     search_text: str | None = None,
+    vendor_search: str | None = None,
     vendor_id: str | None = None,
     sort_by: ItemSortParam | None = None,
     sort_order: SortOrder = SortOrder.ASC,
@@ -53,7 +54,17 @@ async def get_items(
     limit: Annotated[int, Query(ge=1, le=200)] = 20,
 ) -> list[Item]:
     return await item_model.get_items(
-        status, search_text, vendor_id, sort_by, sort_order, lat, lng, distance_km, page, limit
+        status,
+        search_text,
+        vendor_search,
+        vendor_id,
+        sort_by,
+        sort_order,
+        lat,
+        lng,
+        distance_km,
+        page,
+        limit,
     )
 
 
