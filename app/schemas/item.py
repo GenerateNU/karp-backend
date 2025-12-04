@@ -4,6 +4,8 @@ from enum import Enum
 from bson import ObjectId
 from pydantic import AliasChoices, BaseModel, Field, field_validator
 
+from app.schemas.location import Location
+
 
 class ItemStatus(str, Enum):
     PUBLISHED = "PUBLISHED"
@@ -19,6 +21,7 @@ class Item(BaseModel):
     name: str
     status: ItemStatus
     vendor_id: str
+    location: Location | None = None
     time_posted: datetime = datetime.now()
     expiration: datetime
     price: int

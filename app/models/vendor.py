@@ -33,8 +33,15 @@ class VendorModel:
         if not vendor_data:
             raise HTTPException(status_code=404, detail="Vendor is not found or it is not approved")
         if vendor_data:
-            print(vendor_data)
-            return Vendor(**vendor_data)
+            vendor = Vendor(**vendor_data)
+            if vendor.location:
+                print(
+                    f"[VendorModel] Vendor {vendor_id} has location: "
+                    f"{vendor.location.model_dump()}"
+                )
+            else:
+                print(f"[VendorModel] WARNING: Vendor {vendor_id} has NO location")
+            return vendor
         return None
 
     async def create_vendor(
@@ -111,10 +118,21 @@ class VendorModel:
         self, vendor_id: str, vendor: UpdateVendorRequest, location: Location | None = None
     ) -> Vendor:
         vendor_data = vendor.model_dump(exclude_unset=True, exclude={"address"})
+        location_updated = False
         if location:
             vendor_data["location"] = location.model_dump()
+            location_updated = True
 
         await self.collection.update_one({"_id": ObjectId(vendor_id)}, {"$set": vendor_data})
+
+        # If location was updated, sync it to all items from this vendor
+        if location_updated:
+            from app.models.item import item_model
+
+            await item_model.collection.update_many(
+                {"vendor_id": ObjectId(vendor_id)},
+                {"$set": {"location": location.model_dump()}},
+            )
 
         updated_doc = await self.collection.find_one({"_id": ObjectId(vendor_id)})
         return Vendor(**updated_doc)

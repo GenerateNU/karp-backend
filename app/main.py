@@ -27,6 +27,7 @@ from app.api.endpoints import (
 from app.core.config import settings
 from app.models.event import EventModel
 from app.models.event_similarity import EventSimilarityModel
+from app.models.item import ItemModel
 from app.models.organization import OrganizationModel
 from app.models.registration import RegistrationModel
 from app.models.vendor import VendorModel
@@ -40,12 +41,14 @@ async def lifespan(app: FastAPI):
     event_model = EventModel.get_instance()
     org_model = OrganizationModel.get_instance()
     event_similarity_model = EventSimilarityModel.get_instance()
+    item_model = ItemModel.get_instance()
     registration_model = RegistrationModel.get_instance()
     vendor_model = VendorModel.get_instance()
     volunteer_model = VolunteerModel.get_instance()
     await event_model.create_indexes()
     await org_model.create_indexes()
     await event_similarity_model.create_indexes()
+    await item_model.create_indexes()
     await registration_model.create_indexes()
     await vendor_model.create_indexes()
     await volunteer_model.create_indexes()

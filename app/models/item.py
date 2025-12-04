@@ -25,7 +25,20 @@ class ItemModel:
             ItemModel._instance = cls()
         return ItemModel._instance
 
+    async def create_indexes(self):
+        try:
+            await self.collection.create_index([("location", "2dsphere")])
+        except Exception:
+            pass
+
     async def create_item(self, item: CreateItemRequest, vendor_id: str) -> Item:
+        from app.models.vendor import vendor_model
+
+        # Get vendor to inherit location
+        vendor = await vendor_model.get_vendor_by_id(vendor_id)
+        if not vendor:
+            raise HTTPException(status_code=404, detail="Vendor not found")
+
         item_data = item.model_dump()
 
         item_data["time_posted"] = datetime.now()
@@ -33,13 +46,37 @@ class ItemModel:
         item_data["status"] = ItemStatus.PUBLISHED
         item_data["price"] = int(item.dollar_price * 100)
 
+        # Inherit location from vendor (derived attribute)
+        if vendor.location:
+            # Convert Location object to dict for MongoDB storage
+            location_dict = vendor.location.model_dump()
+            item_data["location"] = location_dict
+            print(
+                f"[ItemModel] ✓ Inheriting location from vendor {vendor_id} "
+                f"({vendor.name}): {location_dict}"
+            )
+        else:
+            print(
+                f"[ItemModel] ⚠ WARNING: Vendor {vendor_id} ({vendor.name}) "
+                f"has no location. Item will be created without location."
+            )
+
         if "tags" not in item_data:
             item_data["tags"] = []
 
         result = await self.collection.insert_one(item_data)
         inserted_doc = await self.collection.find_one({"_id": result.inserted_id})
 
-        return Item(**inserted_doc)
+        created_item = Item(**inserted_doc)
+        if created_item.location:
+            print(
+                f"[ItemModel] Item {created_item.id} created with location: "
+                f"{created_item.location.model_dump()}"
+            )
+        else:
+            print(f"[ItemModel] WARNING: Item {created_item.id} created WITHOUT location")
+
+        return created_item
 
     async def get_all_items(self) -> list[Item]:
         items_list = await self.collection.find().to_list(length=None)
@@ -75,62 +112,78 @@ class ItemModel:
         if vendor_id:
             filters["vendor_id"] = ObjectId(vendor_id)
 
-        # Filter by location through vendor
-        # First find vendors within the location radius, then filter items by those vendors
-        vendor_ids = None
-        if lat is not None and lng is not None and distance_km is not None:
-            from app.models.vendor import vendor_model
+        # Filter by location using item.location (derived from vendor)
+        use_geo = lat is not None and lng is not None and distance_km is not None
 
+        if use_geo:
             location = Location(type="Point", coordinates=[lng, lat])
             max_distance_meters = int(distance_km * 1000)
 
-            # Use $geoNear in aggregation pipeline for vendor query
-            vendor_pipeline = [
-                {
-                    "$geoNear": {
-                        "near": location.model_dump(),
-                        "distanceField": "distance",
-                        "maxDistance": max_distance_meters,
-                        "spherical": True,
-                    }
-                },
-                {"$project": {"_id": 1}},
-            ]
-            vendors_list = await vendor_model.collection.aggregate(vendor_pipeline).to_list(
-                length=None
-            )
-            vendor_ids = [ObjectId(v["_id"]) for v in vendors_list if v.get("_id")]
+            # Build aggregation pipeline for geospatial query
+            pipeline = []
 
-            if not vendor_ids:
-                # No vendors in range, return empty list
-                return []
+            # Stage 1: $geoNear must be first in pipeline
+            # Only include items that have a location field
+            location_filter = {"location": {"$exists": True, "$ne": None}}
 
-            # Add vendor filter
-            if "$and" in filters:
-                filters["$and"].append({"vendor_id": {"$in": vendor_ids}})
-            elif filters:
-                filters = {"$and": [filters, {"vendor_id": {"$in": vendor_ids}}]}
+            # Combine location filter with other filters
+            if filters:
+                if "$and" in filters:
+                    filters["$and"].append(location_filter)
+                    geo_query = filters
+                else:
+                    geo_query = {"$and": [filters, location_filter]}
             else:
-                filters = {"vendor_id": {"$in": vendor_ids}}
+                geo_query = location_filter
 
-        sort_criteria = []
-        if sort_by:
-            sort_direction = 1 if sort_order == SortOrder.ASC else -1
-            sort_criteria.append((sort_by.field_name, sort_direction))
+            geo_near_stage = {
+                "$geoNear": {
+                    "near": location.model_dump(),
+                    "distanceField": "distance",
+                    "maxDistance": max_distance_meters,
+                    "spherical": True,
+                    "query": geo_query,  # Apply filters including location existence check
+                }
+            }
+            pipeline.append(geo_near_stage)
 
-        skip = max(0, (page - 1) * max(1, limit))
-        safe_limit = max(1, min(200, limit))
+            # Stage 2: Sort
+            if sort_by:
+                sort_direction = 1 if sort_order == SortOrder.ASC else -1
+                pipeline.append({"$sort": {sort_by.field_name: sort_direction, "_id": 1}})
+            else:
+                pipeline.append({"$sort": {"_id": 1}})
 
-        if sort_criteria:
-            items_list = (
-                await self.collection.find(filters)
-                .sort(sort_criteria)
-                .skip(skip)
-                .limit(safe_limit)
-                .to_list()
-            )
+            # Stage 3: Skip and limit
+            skip = max(0, (page - 1) * max(1, limit))
+            safe_limit = max(1, min(200, limit))
+            pipeline.append({"$skip": skip})
+            pipeline.append({"$limit": safe_limit})
+
+            # Execute aggregation
+            items_list = await self.collection.aggregate(pipeline).to_list(length=None)
         else:
-            items_list = await self.collection.find(filters).skip(skip).limit(safe_limit).to_list()
+            # No location filter - use regular find
+            sort_criteria = []
+            if sort_by:
+                sort_direction = 1 if sort_order == SortOrder.ASC else -1
+                sort_criteria.append((sort_by.field_name, sort_direction))
+
+            skip = max(0, (page - 1) * max(1, limit))
+            safe_limit = max(1, min(200, limit))
+
+            if sort_criteria:
+                items_list = (
+                    await self.collection.find(filters)
+                    .sort(sort_criteria)
+                    .skip(skip)
+                    .limit(safe_limit)
+                    .to_list()
+                )
+            else:
+                items_list = (
+                    await self.collection.find(filters).skip(skip).limit(safe_limit).to_list()
+                )
 
         return [Item(**item) for item in items_list]
 
