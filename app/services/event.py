@@ -138,7 +138,7 @@ class EventService:
         check_out_buf = io.BytesIO()
         check_out_img.save(check_out_buf, format="PNG")
         check_out_qr_code = base64.b64encode(
-            check_in_buf.getvalue()
+            check_out_buf.getvalue()
         ).decode()  # qr code image for frontend
 
         update_event_req = UpdateEventRequest(
