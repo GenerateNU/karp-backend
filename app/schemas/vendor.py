@@ -27,6 +27,7 @@ class Vendor(BaseModel):
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
     website: str | None = None
+    address: str
 
     class Config:
         from_attributes = True
