@@ -1,9 +1,8 @@
 import base64
-import datetime
 import io
 import json
 import secrets
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Literal
 
 import qrcode
