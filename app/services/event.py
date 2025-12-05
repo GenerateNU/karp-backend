@@ -212,6 +212,7 @@ class EventService:
         )
 
         now = datetime.now(UTC)
+        print(f"DEBUG: About to filter events. now={now}, now.tzinfo={now.tzinfo}")
         upcoming_events = [e for e in filtered_events if e.start_date_time > now]
 
         scored_events = await recommendation_service.score_events_for_volunteer(
