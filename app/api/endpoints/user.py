@@ -144,11 +144,13 @@ async def create_user(payload: Annotated[CreateUserRequest, Body(...)]):
     # Validate email format
     ok_email, email_message = validate_email(payload.email)
     if not ok_email:
+        print("hello")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=email_message)
 
     # Validate password strength
     ok, message = validate_password(payload.password)
     if not ok:
+        print("bye")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
 
     # Check if user exists
@@ -157,6 +159,7 @@ async def create_user(payload: Annotated[CreateUserRequest, Body(...)]):
     )
 
     if user_exists:
+        print("lol")
         detail = "Email or username already registered"
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)
 

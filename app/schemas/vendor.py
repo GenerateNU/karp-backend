@@ -26,6 +26,7 @@ class Vendor(BaseModel):
     location: Location | None = None
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
+    website: str | None = None
 
     class Config:
         from_attributes = True
@@ -42,6 +43,7 @@ class CreateVendorRequest(BaseModel):
     name: str
     business_type: str
     address: str
+    website: str | None = None
 
 
 class UpdateVendorRequest(BaseModel):
@@ -49,3 +51,4 @@ class UpdateVendorRequest(BaseModel):
     business_type: str | None = None
     status: VendorStatus | None = None
     address: str | None = None
+    website: str | None = None
