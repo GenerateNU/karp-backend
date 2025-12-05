@@ -151,7 +151,7 @@ async def check_out_registration(
     if not event:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
 
-    if event.check_in_qr_token != qr_token:
+    if event.check_out_qr_token != qr_token:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Invalid QR Code for Event"
         )
