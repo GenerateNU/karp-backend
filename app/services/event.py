@@ -2,7 +2,7 @@ import base64
 import io
 import json
 import secrets
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Literal
 
 import qrcode
@@ -211,11 +211,8 @@ class EventService:
             lng=lng,
         )
 
-        now = datetime.now()
-        upcoming_events = [e for e in filtered_events if e.start_date_time > now]
-
         scored_events = await recommendation_service.score_events_for_volunteer(
-            volunteer_id, upcoming_events
+            volunteer_id, filtered_events
         )
 
         scored_events.sort(key=lambda x: x["score"], reverse=True)
