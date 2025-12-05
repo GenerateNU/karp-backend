@@ -109,7 +109,7 @@ async def check_in_registration(
     check_in_end = event.start_date_time + timedelta(minutes=30)
     current_time = datetime.now(UTC)
 
-    if current_time > check_in_start and current_time < check_in_end:
+    if current_time < check_in_start or current_time > check_in_end:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You can't check in for this Event as this time.",
