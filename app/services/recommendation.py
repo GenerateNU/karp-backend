@@ -244,5 +244,57 @@ class RecommendationService:
 
         return recommendations
 
+    async def score_events_for_volunteer(
+        self, volunteer_id: str, events: list[Event]
+    ) -> list[dict[str, Any]]:
+        volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)
+        if not volunteer:
+            return [{"event": e, "score": 0.0} for e in events]
+
+        completed_event_ids = await self.get_volunteer_completed_events(volunteer_id)
+        registered_event_ids = await self.get_volunteer_registered_events(volunteer_id)
+
+        scored_events = []
+
+        for event in events:
+            if not event.id:
+                continue
+
+            if event.id in registered_event_ids:
+                continue
+
+            registrations = await registration_model.registrations.find(
+                {"event_id": ObjectId(event.id)}
+            ).to_list(length=None)
+
+            active_registrations = [
+                r
+                for r in registrations
+                if r.get("registration_status") != RegistrationStatus.UNREGISTERED
+            ]
+
+            if len(active_registrations) >= event.max_volunteers:
+                continue
+
+            if completed_event_ids:
+                collab_score = await self.compute_collaborative_score(event.id, completed_event_ids)
+                content_score = self.compute_content_score(event, volunteer.preferences)
+                final_score = (collab_score * self.COLLAB_WEIGHT) + (
+                    content_score * self.CONTENT_WEIGHT
+                )
+            elif volunteer.preferences:
+                final_score = self.compute_content_score(event, volunteer.preferences)
+            else:
+                popularity_score = (
+                    len(active_registrations) / event.max_volunteers
+                    if event.max_volunteers > 0
+                    else 0
+                )
+                final_score = popularity_score
+
+            scored_events.append({"event": event, "score": final_score})
+
+        return scored_events
+
 
 recommendation_service = RecommendationService.get_instance()
