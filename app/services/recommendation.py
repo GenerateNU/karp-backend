@@ -18,7 +18,6 @@ from app.schemas.volunteer import EventType
 
 class RecommendationService:
     _instance: "RecommendationService | None" = None
-    SIMILARITY_THRESHOLD = 0.7
     COLLAB_WEIGHT = 0.7
     CONTENT_WEIGHT = 0.3
 
@@ -75,10 +74,7 @@ class RecommendationService:
             for j, other_event_id in enumerate(event_ids):
                 if i != j:
                     score = float(similarity_matrix[i][j])
-                    if score >= self.SIMILARITY_THRESHOLD:
-                        similar_events.append(
-                            {"event_id": other_event_id, "similarity_score": score}
-                        )
+                    similar_events.append({"event_id": other_event_id, "similarity_score": score})
 
             similar_events.sort(key=lambda x: float(x["similarity_score"]), reverse=True)
             similarities[event_id] = similar_events
