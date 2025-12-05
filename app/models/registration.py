@@ -35,9 +35,9 @@ class RegistrationModel:
         if not event:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
 
-        registrations = await self.registrations.find({"event_id": ObjectId(event_id)}).to_list(
-            length=None
-        )
+        registrations = await self.registrations.find(
+            {"event_id": ObjectId(event_id), "registration_status": RegistrationStatus.UPCOMING}
+        ).to_list(length=None)
         return [Registration(**doc) for doc in registrations]
 
     async def get_events_by_volunteer(
