@@ -39,6 +39,7 @@ async def get_events(
             "coins",
             "max_volunteers",
             "created_at",
+            "recommendations",
         ],
         Query(description="Sort order for events"),
     ] = None,
@@ -139,7 +140,7 @@ async def get_events(
     lng: Annotated[float | None, Query(ge=-180, le=180, description="Longitude")] = None,
     # Volunteer ID for "been before" filter
     volunteer_id: Annotated[
-        str | None, Query(description="Volunteer ID for 'been before' filter")
+        str | None, Query(description="Volunteer ID for 'been before' or 'recommendations' filter")
     ] = None,
 ) -> list[Event]:
     # If city/state provided but no lat/lng, geocode the location
@@ -163,6 +164,33 @@ async def get_events(
         location_radius_km = 25
     # Get volunteer events if needed for "been before" filter
     volunteer_event_ids: set[str] | None = None
+
+    if sort_by == "recommendations":
+        if volunteer_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail='volunteer_id must be provided when sort_by="recommendations"',
+            )
+
+        return await event_service.get_all_events_with_recommendations(
+            volunteer_id=volunteer_id,
+            q=q,
+            sort_dir=sort_dir,
+            statuses=statuses,
+            organization_id=organization_id,
+            age=age,
+            page=page,
+            limit=limit,
+            causes=causes,
+            qualifications=qualifications,
+            availability_days=availability_days,
+            availability_start_time=availability_start_time,
+            availability_end_time=availability_end_time,
+            location_radius_km=location_radius_km,
+            lat=lat,
+            lng=lng,
+        )
+
     if sort_by == "been_before" and volunteer_id:
         volunteer_events = await registration_model.get_events_by_volunteer(volunteer_id, None)
         volunteer_event_ids = {event.id for event in volunteer_events}
@@ -185,6 +213,7 @@ async def get_events(
         lat=lat,
         lng=lng,
         volunteer_event_ids=volunteer_event_ids,
+        volunteer_id=volunteer_id,
     )
 
 
@@ -267,8 +296,7 @@ async def create_event(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
-                f"Invalid address: {e.detail}. "
-                "Please provide a valid address that can be geocoded."
+                f"Invalid address: {e.detail}. Please provide a valid address that can be geocoded."
             ),
         ) from e
 

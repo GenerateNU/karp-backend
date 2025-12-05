@@ -1,8 +1,10 @@
 import base64
+import datetime
 import io
 import json
 import secrets
 from datetime import timedelta
+from typing import Literal
 
 import qrcode
 from fastapi import HTTPException, status
@@ -17,6 +19,7 @@ from app.schemas.event import CreateEventRequest, Event, EventStatus, UpdateEven
 from app.schemas.location import Location
 from app.schemas.volunteer import Volunteer
 from app.services.ai import ai_service
+from app.services.recommendation import recommendation_service
 
 
 class EventService:
@@ -81,7 +84,7 @@ class EventService:
     async def authorize_org(self, event_id: str, org_id: str) -> Event | None:
         event = await self.event_model.get_event_by_id(event_id)
         print(f"Authorizing org {org_id} for event {event_id}")
-        print(f"Event org: {event.organization_id }")
+        print(f"Event org: {event.organization_id}")
         if not event:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -170,6 +173,59 @@ class EventService:
                 return 1
         except Exception:
             return 1
+
+    async def get_all_events_with_recommendations(
+        self,
+        volunteer_id: str,
+        q: str | None = None,
+        sort_dir: Literal["asc", "desc"] = "desc",
+        statuses: list[EventStatus] | None = None,
+        organization_id: str | None = None,
+        age: int | None = None,
+        page: int = 1,
+        limit: int = 200,
+        causes: list[str] | None = None,
+        qualifications: list[str] | None = None,
+        availability_days: list[str] | None = None,
+        availability_start_time: str | None = None,
+        availability_end_time: str | None = None,
+        location_radius_km: float | None = None,
+        lat: float | None = None,
+        lng: float | None = None,
+    ) -> list[Event]:
+        filtered_events = await self.event_model.get_all_events(
+            q=q,
+            sort_by=None,
+            sort_dir=sort_dir,
+            statuses=statuses or [EventStatus.APPROVED],
+            organization_id=organization_id,
+            age=age,
+            page=1,
+            limit=1000,
+            causes=causes,
+            qualifications=qualifications,
+            availability_days=availability_days,
+            availability_start_time=availability_start_time,
+            availability_end_time=availability_end_time,
+            location_radius_km=location_radius_km,
+            lat=lat,
+            lng=lng,
+        )
+
+        now = datetime.now()
+        upcoming_events = [e for e in filtered_events if e.start_date_time > now]
+
+        scored_events = await recommendation_service.score_events_for_volunteer(
+            volunteer_id, upcoming_events
+        )
+
+        scored_events.sort(key=lambda x: x["score"], reverse=True)
+
+        skip = max(0, (page - 1) * max(1, limit))
+        safe_limit = max(1, min(200, limit))
+        paginated = scored_events[skip : skip + safe_limit]
+
+        return [item["event"] for item in paginated]
 
 
 event_service = EventService.get_instance()
