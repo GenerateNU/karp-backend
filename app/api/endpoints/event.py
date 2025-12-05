@@ -213,7 +213,6 @@ async def get_events(
         lat=lat,
         lng=lng,
         volunteer_event_ids=volunteer_event_ids,
-        volunteer_id=volunteer_id,
     )
 
 
