@@ -22,7 +22,7 @@ class Organization(BaseModel):
     location: Location | None = None
     image_s3_key: str | None = None
     website: str | None = None
-    phoneNumber: str | None = None
+    phone_number: str | None = None
 
     class Config:
         from_attributes = True
@@ -40,7 +40,7 @@ class CreateOrganizationRequest(BaseModel):
     description: str
     address: str
     website: str | None = None
-    phoneNumber: str | None = None
+    phone_number: str | None = None
 
 
 class UpdateOrganizationRequest(BaseModel):
@@ -49,4 +49,4 @@ class UpdateOrganizationRequest(BaseModel):
     status: OrganizationStatus | None = None
     address: str | None = None
     website: str | None = None
-    phoneNumber: str | None = None
+    phone_number: str | None = None
