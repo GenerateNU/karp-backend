@@ -27,7 +27,7 @@ class Vendor(BaseModel):
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
     website: str | None = None
-    address: str
+    address: str | None = None
 
     class Config:
         from_attributes = True
@@ -43,7 +43,7 @@ class Vendor(BaseModel):
 class CreateVendorRequest(BaseModel):
     name: str
     business_type: str
-    address: str
+    address: str | None = None
     website: str | None = None
 
 
