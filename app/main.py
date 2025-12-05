@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
     scheduler_service.shutdown()
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, debug=True)
 
 
 class NoCacheMiddleware(BaseHTTPMiddleware):

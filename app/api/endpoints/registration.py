@@ -94,16 +94,16 @@ async def check_in_registration(
     volunteer_id = current_user.entity_id
     volunteer = await volunteer_model.get_volunteer_by_id(volunteer_id)
     if not volunteer:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found").with_traceback()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Volunteer not found")
 
     event = await event_model.get_event_by_id(event_id)
     if not event:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found").with_traceback()
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
 
     if event.check_in_qr_token != qr_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid QR Code for Event"
-        ).with_traceback()
+        )
 
     check_in_start = event.start_date_time - timedelta(minutes=15)
     check_in_end = event.start_date_time + timedelta(minutes=30)
@@ -113,7 +113,7 @@ async def check_in_registration(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You can't check in for this Event as this time.",
-        ).with_traceback()
+        )
 
     upcoming_events = await registration_model.get_events_by_volunteer(
         volunteer_id, RegistrationStatus.UPCOMING
@@ -122,8 +122,9 @@ async def check_in_registration(
 
     if not volunteer_signed_up:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Volunteer did not sign up for this event"
-        ).with_traceback()
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Volunteer did not sign up for this event",
+        )
 
     return await registration_model.check_in_registration(volunteer_id, event_id)
 
