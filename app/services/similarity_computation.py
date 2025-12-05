@@ -39,7 +39,9 @@ class SimilarityComputationService:
         start_time = datetime.now()
 
         try:
-            events = await event_model.search_events(statuses=[Status.PUBLISHED], limit=200)
+            events = await event_model.get_all_events(
+                statuses=[Status.APPROVED], limit=1000, page=1
+            )
 
             if len(events) < 2:
                 logger.info("Not enough published events to compute similarities")
@@ -153,7 +155,9 @@ class SimilarityComputationService:
                 )
                 return
 
-            all_events = await event_model.search_events(statuses=[Status.PUBLISHED], limit=200)
+            all_events = await event_model.get_all_events(
+                statuses=[Status.APPROVED], limit=1000, page=1
+            )
 
             if len(all_events) < 2:
                 logger.info("Not enough events to compute similarities")
