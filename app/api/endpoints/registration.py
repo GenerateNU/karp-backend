@@ -109,7 +109,7 @@ async def check_in_registration(
     check_in_end = event.start_date_time + timedelta(minutes=30)
     current_time = datetime.now(UTC)
 
-    if current_time < check_in_start or current_time > check_in_end:
+    if current_time > check_in_start and current_time < check_in_end:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="You can't check in for this Event as this time.",
@@ -159,7 +159,7 @@ async def check_out_registration(
     check_out_end = event.end_date_time + timedelta(minutes=30)
     current_time = datetime.now(UTC)
 
-    if current_time < check_out_start or current_time > check_out_end:
+    if current_time > check_out_start and current_time < check_out_end:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="You can't check out for this Event as this time.",
